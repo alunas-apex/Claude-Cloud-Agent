@@ -2,8 +2,15 @@ import { google } from 'googleapis';
 import { ToolModule } from '../base.js';
 import { getAuthClient } from './auth.js';
 
-function getCalendar() {
-  return google.calendar({ version: 'v3', auth: getAuthClient() });
+const ACCOUNT_ID_PROP = {
+  accountId: {
+    type: 'string',
+    description: 'Google account to use (e.g. "work", "personal"). Defaults to primary account.',
+  },
+} as const;
+
+function getCalendar(accountId?: string) {
+  return google.calendar({ version: 'v3', auth: getAuthClient(accountId) });
 }
 
 export const CalendarToolModule: ToolModule = {
@@ -16,23 +23,14 @@ export const CalendarToolModule: ToolModule = {
       input_schema: {
         type: 'object',
         properties: {
-          maxResults: {
-            type: 'number',
-            description: 'Max number of events to return (default 10).',
-          },
+          maxResults: { type: 'number', description: 'Max events to return (default 10).' },
           timeMin: {
             type: 'string',
-            description:
-              'Start time in ISO 8601 format. Defaults to now. Example: "2024-12-01T00:00:00Z".',
+            description: 'Start time in ISO 8601 format. Defaults to now.',
           },
-          timeMax: {
-            type: 'string',
-            description: 'End time in ISO 8601 format (optional).',
-          },
-          query: {
-            type: 'string',
-            description: 'Free-text search query to filter events.',
-          },
+          timeMax: { type: 'string', description: 'End time in ISO 8601 format (optional).' },
+          query: { type: 'string', description: 'Free-text search query to filter events.' },
+          ...ACCOUNT_ID_PROP,
         },
         required: [],
       },
@@ -44,14 +42,8 @@ export const CalendarToolModule: ToolModule = {
         type: 'object',
         properties: {
           summary: { type: 'string', description: 'Event title.' },
-          start: {
-            type: 'string',
-            description: 'Start time in ISO 8601 format, e.g. "2024-12-15T14:00:00-05:00".',
-          },
-          end: {
-            type: 'string',
-            description: 'End time in ISO 8601 format.',
-          },
+          start: { type: 'string', description: 'Start time in ISO 8601 format.' },
+          end: { type: 'string', description: 'End time in ISO 8601 format.' },
           description: { type: 'string', description: 'Event description/notes (optional).' },
           location: { type: 'string', description: 'Location of the event (optional).' },
           attendees: {
@@ -63,6 +55,7 @@ export const CalendarToolModule: ToolModule = {
             type: 'boolean',
             description: 'Add a Google Meet link to this event (optional).',
           },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['summary', 'start', 'end'],
       },
@@ -79,6 +72,7 @@ export const CalendarToolModule: ToolModule = {
           end: { type: 'string', description: 'New end time ISO 8601 (optional).' },
           description: { type: 'string', description: 'New description (optional).' },
           location: { type: 'string', description: 'New location (optional).' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['eventId'],
       },
@@ -90,6 +84,7 @@ export const CalendarToolModule: ToolModule = {
         type: 'object',
         properties: {
           eventId: { type: 'string', description: 'Calendar event ID to delete.' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['eventId'],
       },
@@ -98,7 +93,7 @@ export const CalendarToolModule: ToolModule = {
 
   handlers: {
     async list_calendar_events(input) {
-      const calendar = getCalendar();
+      const calendar = getCalendar(input.accountId as string | undefined);
       const maxResults = Math.min((input.maxResults as number) ?? 10, 25);
       const timeMin = (input.timeMin as string) ?? new Date().toISOString();
 
@@ -136,24 +131,17 @@ export const CalendarToolModule: ToolModule = {
     },
 
     async create_calendar_event(input) {
-      const calendar = getCalendar();
-      const {
-        summary,
-        start,
-        end,
-        description,
-        location,
-        attendees,
-        videoConference,
-      } = input as {
-        summary: string;
-        start: string;
-        end: string;
-        description?: string;
-        location?: string;
-        attendees?: string[];
-        videoConference?: boolean;
-      };
+      const calendar = getCalendar(input.accountId as string | undefined);
+      const { summary, start, end, description, location, attendees, videoConference } =
+        input as {
+          summary: string;
+          start: string;
+          end: string;
+          description?: string;
+          location?: string;
+          attendees?: string[];
+          videoConference?: boolean;
+        };
 
       const requestBody: any = {
         summary,
@@ -185,7 +173,7 @@ export const CalendarToolModule: ToolModule = {
     },
 
     async update_calendar_event(input) {
-      const calendar = getCalendar();
+      const calendar = getCalendar(input.accountId as string | undefined);
       const { eventId, ...fields } = input as {
         eventId: string;
         summary?: string;
@@ -212,7 +200,7 @@ export const CalendarToolModule: ToolModule = {
     },
 
     async delete_calendar_event(input) {
-      const calendar = getCalendar();
+      const calendar = getCalendar(input.accountId as string | undefined);
       await calendar.events.delete({
         calendarId: 'primary',
         eventId: input.eventId as string,

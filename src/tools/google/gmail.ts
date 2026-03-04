@@ -2,8 +2,15 @@ import { google } from 'googleapis';
 import { ToolModule } from '../base.js';
 import { getAuthClient } from './auth.js';
 
-function getGmail() {
-  return google.gmail({ version: 'v1', auth: getAuthClient() });
+const ACCOUNT_ID_PROP = {
+  accountId: {
+    type: 'string',
+    description: 'Google account to use (e.g. "work", "personal"). Defaults to primary account.',
+  },
+} as const;
+
+function getGmail(accountId?: string) {
+  return google.gmail({ version: 'v1', auth: getAuthClient(accountId) });
 }
 
 function decodeBody(data?: string | null): string {
@@ -20,7 +27,6 @@ function extractBody(payload: any): string {
         return decodeBody(part.body.data);
       }
     }
-    // Fallback to first part with data
     for (const part of payload.parts) {
       const body = extractBody(part);
       if (body) return body;
@@ -53,6 +59,7 @@ export const GmailToolModule: ToolModule = {
             type: 'number',
             description: 'Max number of emails to return (default 10, max 25).',
           },
+          ...ACCOUNT_ID_PROP,
         },
         required: [],
       },
@@ -64,6 +71,7 @@ export const GmailToolModule: ToolModule = {
         type: 'object',
         properties: {
           messageId: { type: 'string', description: 'Gmail message ID.' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['messageId'],
       },
@@ -78,6 +86,7 @@ export const GmailToolModule: ToolModule = {
           subject: { type: 'string', description: 'Email subject.' },
           body: { type: 'string', description: 'Plain-text email body.' },
           cc: { type: 'string', description: 'CC email address (optional).' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['to', 'subject', 'body'],
       },
@@ -90,18 +99,20 @@ export const GmailToolModule: ToolModule = {
         properties: {
           messageId: { type: 'string', description: 'Gmail message ID to reply to.' },
           body: { type: 'string', description: 'Reply text.' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['messageId', 'body'],
       },
     },
     {
       name: 'search_emails',
-      description: 'Search emails and return a summary list. Alias for list_emails with a required query.',
+      description: 'Search emails and return a summary list.',
       input_schema: {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'Gmail search query string.' },
           maxResults: { type: 'number', description: 'Max results (default 10).' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['query'],
       },
@@ -110,16 +121,11 @@ export const GmailToolModule: ToolModule = {
 
   handlers: {
     async list_emails(input) {
-      const gmail = getGmail();
+      const gmail = getGmail(input.accountId as string | undefined);
       const maxResults = Math.min((input.maxResults as number) ?? 10, 25);
       const query = (input.query as string) ?? 'in:inbox';
 
-      const listRes = await gmail.users.messages.list({
-        userId: 'me',
-        q: query,
-        maxResults,
-      });
-
+      const listRes = await gmail.users.messages.list({ userId: 'me', q: query, maxResults });
       const messages = listRes.data.messages ?? [];
       if (messages.length === 0) return 'No emails found matching that query.';
 
@@ -140,7 +146,7 @@ export const GmailToolModule: ToolModule = {
     },
 
     async read_email(input) {
-      const gmail = getGmail();
+      const gmail = getGmail(input.accountId as string | undefined);
       const msg = await gmail.users.messages.get({
         userId: 'me',
         id: input.messageId as string,
@@ -161,7 +167,7 @@ export const GmailToolModule: ToolModule = {
     },
 
     async send_email(input) {
-      const gmail = getGmail();
+      const gmail = getGmail(input.accountId as string | undefined);
       const { to, subject, body, cc } = input as {
         to: string;
         subject: string;
@@ -186,7 +192,7 @@ export const GmailToolModule: ToolModule = {
     },
 
     async reply_to_email(input) {
-      const gmail = getGmail();
+      const gmail = getGmail(input.accountId as string | undefined);
       const { messageId, body } = input as { messageId: string; body: string };
 
       const original = await gmail.users.messages.get({
@@ -214,16 +220,11 @@ export const GmailToolModule: ToolModule = {
       ].join('\n');
 
       const raw = Buffer.from(lines).toString('base64url');
-      await gmail.users.messages.send({
-        userId: 'me',
-        requestBody: { raw, threadId },
-      });
-
+      await gmail.users.messages.send({ userId: 'me', requestBody: { raw, threadId } });
       return `Reply sent to ${from} on thread "${replySubject}".`;
     },
 
     async search_emails(input) {
-      // Delegate to list_emails
       return GmailToolModule.handlers.list_emails(input);
     },
   },

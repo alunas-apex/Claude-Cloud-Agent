@@ -3,12 +3,19 @@
  *
  * To activate:
  *  1. Ensure your Google Cloud project has the Drive API enabled
- *  2. Uncomment this module in src/index.ts
- *  3. The existing GOOGLE_CLIENT_ID/SECRET credentials are reused — no extra env vars needed
- *     (but you may need to re-run `npm run setup-google` to grant Drive scope)
+ *  2. Uncomment DriveToolModule in src/index.ts
+ *  3. The existing GOOGLE_CLIENT_ID/SECRET credentials are reused.
+ *     Re-run `npm run setup-google` if you haven't already — Drive scope is included.
  */
 
 import { ToolModule } from '../base.js';
+
+const ACCOUNT_ID_PROP = {
+  accountId: {
+    type: 'string',
+    description: 'Google account to use (e.g. "work", "personal"). Defaults to primary account.',
+  },
+} as const;
 
 export const DriveToolModule: ToolModule = {
   name: 'GoogleDrive',
@@ -22,6 +29,7 @@ export const DriveToolModule: ToolModule = {
         properties: {
           query: { type: 'string', description: 'Drive search query (optional).' },
           maxResults: { type: 'number', description: 'Max files to return (default 10).' },
+          ...ACCOUNT_ID_PROP,
         },
         required: [],
       },
@@ -33,6 +41,7 @@ export const DriveToolModule: ToolModule = {
         type: 'object',
         properties: {
           fileId: { type: 'string', description: 'Google Drive file ID.' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['fileId'],
       },
@@ -45,6 +54,7 @@ export const DriveToolModule: ToolModule = {
         properties: {
           title: { type: 'string', description: 'Document title.' },
           content: { type: 'string', description: 'Initial document content.' },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['title', 'content'],
       },
@@ -62,6 +72,7 @@ export const DriveToolModule: ToolModule = {
             enum: ['reader', 'commenter', 'writer'],
             description: 'Permission level.',
           },
+          ...ACCOUNT_ID_PROP,
         },
         required: ['fileId', 'email'],
       },
@@ -70,16 +81,16 @@ export const DriveToolModule: ToolModule = {
 
   handlers: {
     async list_drive_files(_input) {
-      return 'Google Drive integration is not yet activated. See src/tools/google/drive.ts.';
+      return 'Google Drive integration is not yet activated. Uncomment DriveToolModule in src/index.ts.';
     },
     async read_drive_file(_input) {
-      return 'Google Drive integration is not yet activated. See src/tools/google/drive.ts.';
+      return 'Google Drive integration is not yet activated. Uncomment DriveToolModule in src/index.ts.';
     },
     async create_drive_document(_input) {
-      return 'Google Drive integration is not yet activated. See src/tools/google/drive.ts.';
+      return 'Google Drive integration is not yet activated. Uncomment DriveToolModule in src/index.ts.';
     },
     async share_drive_file(_input) {
-      return 'Google Drive integration is not yet activated. See src/tools/google/drive.ts.';
+      return 'Google Drive integration is not yet activated. Uncomment DriveToolModule in src/index.ts.';
     },
   },
 };
@@ -87,5 +98,5 @@ export const DriveToolModule: ToolModule = {
 // TODO: Replace stub handlers above with real implementations using:
 //   import { google } from 'googleapis';
 //   import { getAuthClient } from './auth.js';
-//   const drive = google.drive({ version: 'v3', auth: getAuthClient() });
-//   const docs  = google.docs({ version: 'v1', auth: getAuthClient() });
+//   const drive = google.drive({ version: 'v3', auth: getAuthClient(input.accountId as string | undefined) });
+//   const docs  = google.docs({ version: 'v1', auth: getAuthClient(input.accountId as string | undefined) });

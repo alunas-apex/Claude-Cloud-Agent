@@ -7,11 +7,16 @@ import { TwilioChannel } from './channels/twilio/index.js';
 // import { SlackChannel }    from './channels/slack/index.js';     // Uncomment to activate
 // import { WhatsAppChannel } from './channels/whatsapp/index.js';  // Uncomment to activate
 
-// ── Tool Modules ──────────────────────────────────────────────────────────────
+// ── Tool Modules — Google Workspace ──────────────────────────────────────────
+import { AccountsToolModule } from './tools/google/accounts.js';
 import { GmailToolModule }    from './tools/google/gmail.js';
 import { CalendarToolModule } from './tools/google/calendar.js';
-import { DatetimeToolModule } from './tools/utility/datetime.js';
+import { GcpToolModule }      from './tools/google/cloud.js';
+import { AdminToolModule }    from './tools/google/admin.js';
 // import { DriveToolModule }  from './tools/google/drive.js';  // Uncomment to activate
+
+// ── Tool Modules — Utility & Stubs ────────────────────────────────────────────
+import { DatetimeToolModule } from './tools/utility/datetime.js';
 // import { ZoomToolModule }   from './tools/zoom/index.js';    // Uncomment to activate
 
 // ── Core Services ─────────────────────────────────────────────────────────────
@@ -31,8 +36,11 @@ if (missing.length > 0) {
 // ── Wire up tool registry ─────────────────────────────────────────────────────
 const toolRegistry = new ToolRegistry();
 toolRegistry.register(DatetimeToolModule);
+toolRegistry.register(AccountsToolModule);
 toolRegistry.register(GmailToolModule);
 toolRegistry.register(CalendarToolModule);
+toolRegistry.register(GcpToolModule);
+toolRegistry.register(AdminToolModule);
 // toolRegistry.register(DriveToolModule);  // Uncomment to activate
 // toolRegistry.register(ZoomToolModule);   // Uncomment to activate
 
@@ -53,11 +61,11 @@ const app = createServer(channels, messageRouter);
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
 app.listen(port, () => {
-  console.log(`\n🤖 Claude Cloud Agent running on port ${port}`);
-  console.log(`   Health check: http://localhost:${port}/health`);
-  console.log(`   Active channels: ${channels.map((c) => c.name).join(', ')}`);
-  console.log(`   Active tools: Gmail, Calendar, Datetime`);
-  console.log('\n   Ready to receive messages.\n');
+  console.log(`\n[Claude Cloud Agent] Running on port ${port}`);
+  console.log(`  Health: http://localhost:${port}/health`);
+  console.log(`  Channels: ${channels.map((c) => c.name).join(', ')}`);
+  console.log(`  Tools: Accounts, Gmail, Calendar, GCP (16 tools), Admin (13 tools), Datetime`);
+  console.log('\n  Ready to receive messages.\n');
 });
 
 // Graceful shutdown
