@@ -29,6 +29,7 @@ import { McpServerManager }  from './services/mcp-server.js';
 import { McpClientManager }  from './services/mcp-client.js';
 import { MemoryService }     from './services/memory.js';
 import { MemoryToolModule, setMemoryService } from './tools/memory/index.js';
+import { AgentTeam }         from './agents/team.js';
 
 // ── Validate required environment variables ───────────────────────────────────
 const required = ['ANTHROPIC_API_KEY'];
@@ -73,9 +74,12 @@ const mcpClient = new McpClientManager(toolRegistry);
 const memory = new MemoryService();
 setMemoryService(memory);
 
+// ── Wire up Agent Team ────────────────────────────────────────────────────────
+const agentTeam = new AgentTeam(toolRegistry, costTracker);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 const { httpServer } = createServer({
-  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory,
+  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory, agentTeam,
 });
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
