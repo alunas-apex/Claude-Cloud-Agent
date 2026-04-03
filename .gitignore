@@ -7,3 +7,4 @@ data/
 .turbo/
 .next/
 apps/dashboard/.next/
+*.tsbuildinfo
