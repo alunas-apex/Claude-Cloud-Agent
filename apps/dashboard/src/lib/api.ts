@@ -38,6 +38,13 @@ export const api = {
       estimatedInputCost: number; estimatedOutputCost: number; fallbackChain: string[];
     }>(`/api/model/route?message=${encodeURIComponent(message)}&conversationLength=${conversationLength}`),
   },
+  memory: {
+    status: () => fetchAPI<{ path: string; exists: boolean; noteCount: number; indexedCount: number; watching: boolean; chromaAvailable: boolean }>('/api/memory/status'),
+    search: (q: string, limit = 5) => fetchAPI<Array<{ id: string; content: string; metadata: Record<string, any>; source: string; similarity?: number }>>(`/api/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+    recent: (limit = 10) => fetchAPI<Array<{ id: string; content: string; metadata: Record<string, any>; source: string }>>(`/api/memory/recent?limit=${limit}`),
+    store: (content: string, title?: string, tags?: string[]) =>
+      fetchAPI<{ ok: boolean; id: string }>('/api/memory', { method: 'POST', body: JSON.stringify({ content, title, tags }) }),
+  },
   mcp: {
     serverStatus: () => fetchAPI<{ enabled: boolean; toolCount: number; sseClients: number; transports: string[] }>('/api/mcp/server/status'),
     listServers: () => fetchAPI<Array<{ id: string; name: string; command?: string; url?: string; enabled: boolean; connected: boolean; toolCount: number }>>('/api/mcp/servers'),

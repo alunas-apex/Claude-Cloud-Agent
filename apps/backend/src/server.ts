@@ -7,6 +7,7 @@ import { CostTracker } from './agent/cost-tracker.js';
 import { ModelRouter } from './agent/model-router.js';
 import { McpServerManager } from './services/mcp-server.js';
 import { McpClientManager } from './services/mcp-client.js';
+import { MemoryService } from './services/memory.js';
 import { initWebSocket } from './services/websocket.js';
 
 interface ServerDeps {
@@ -17,10 +18,11 @@ interface ServerDeps {
   modelRouter?: ModelRouter;
   mcpServer?: McpServerManager;
   mcpClient?: McpClientManager;
+  memory?: MemoryService;
 }
 
 export function createServer(deps: ServerDeps): { app: express.Express; httpServer: http.Server } {
-  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient } = deps;
+  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory } = deps;
   const app = express();
   const httpServer = http.createServer(app);
 
@@ -134,6 +136,37 @@ export function createServer(deps: ServerDeps): { app: express.Express; httpServ
   app.get('/api/tools/categories', (_req, res) => {
     if (!toolRegistry) { res.json({}); return; }
     res.json(toolRegistry.getCategoryCounts());
+  });
+
+  // ── Memory API (Phase 5) ────────────────────────────────────────────────
+
+  app.get('/api/memory/status', (_req, res) => {
+    if (!memory) { res.json({ path: '', exists: false, noteCount: 0, indexedCount: 0, watching: false }); return; }
+    res.json({ ...memory.getStatus(), chromaAvailable: memory.isChromaAvailable() });
+  });
+
+  app.get('/api/memory/search', async (req, res) => {
+    if (!memory) { res.json([]); return; }
+    const query = (req.query.q as string) || '';
+    const limit = parseInt(String(req.query.limit || '5'), 10);
+    if (!query) { res.status(400).json({ error: 'q parameter required' }); return; }
+    const results = await memory.search(query, limit);
+    res.json(results);
+  });
+
+  app.get('/api/memory/recent', async (req, res) => {
+    if (!memory) { res.json([]); return; }
+    const limit = parseInt(String(req.query.limit || '10'), 10);
+    const results = await memory.getRecent(limit);
+    res.json(results);
+  });
+
+  app.post('/api/memory', async (req, res) => {
+    if (!memory) { res.status(503).json({ error: 'Memory service not initialized' }); return; }
+    const { content, title, tags, source } = req.body;
+    if (!content) { res.status(400).json({ error: 'content required' }); return; }
+    const id = await memory.store({ content, title, tags, source: source || 'agent' });
+    res.json({ ok: true, id });
   });
 
   // ── MCP API (Phase 4) ───────────────────────────────────────────────────

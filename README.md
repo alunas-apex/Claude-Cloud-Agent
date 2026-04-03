@@ -385,8 +385,8 @@ export const MyChannel: Channel = {
 <tr>
 <td align="center">5</td>
 <td>Obsidian AI Brain</td>
-<td align="center">&#9744;</td>
-<td>ChromaDB vector memory, bidirectional Obsidian vault sync</td>
+<td align="center">&#9989;</td>
+<td>ChromaDB vector memory, Obsidian vault sync, memory tools, dashboard</td>
 </tr>
 <tr>
 <td align="center">6</td>

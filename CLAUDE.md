@@ -40,8 +40,15 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
 - **Enhanced Database**: Sessions, messages, tool executions, cost ledger, settings, and plugin registry
 - **API**: REST endpoints for sessions, tools, costs, budget, model routing, MCP, and settings at `/api/*`
 
-### Planned (Phases 5-7)
 - **Obsidian AI Brain**: Persistent vector memory with bidirectional Obsidian vault sync
+  - ChromaDB vector database for semantic similarity search
+  - Obsidian vault as markdown-based knowledge store (auto-created in `data/obsidian-vault/`)
+  - File watcher (chokidar) for real-time vault change detection and auto-reindex
+  - Agent memory tools: `memory_store`, `memory_search`, `memory_recent`, `vault_status`
+  - Fallback to keyword-based file search when ChromaDB is unavailable
+  - Dashboard memory page with search, store, and vault status panels
+
+### Planned (Phases 6-7)
 - **Agent Teams**: Coordinator, Researcher, Coder, Planner, Executor agents that collaborate
 - **Plugin System**: Hot-loadable plugins with marketplace
 - **More Channels**: Telegram, Slack, WhatsApp, Discord, Email (stubs ready to activate)
@@ -141,6 +148,8 @@ claude-cloud-agent/
 │   │   │   │   │   ├── cloud.ts       ✅ GCP (16 tools)
 │   │   │   │   │   ├── admin.ts       ✅ Workspace Admin (13 tools)
 │   │   │   │   │   └── drive.ts       🔧 Stub
+│   │   │   │   ├── memory/
+│   │   │   │   │   └── index.ts       ✅ Memory store/search/recall tools
 │   │   │   │   ├── utility/
 │   │   │   │   │   └── datetime.ts    ✅ Current date/time
 │   │   │   │   └── zoom/              🔧 Stub
@@ -151,7 +160,8 @@ claude-cloud-agent/
 │   │   │   │   ├── event-bus.ts       ✅ Central event system
 │   │   │   │   ├── websocket.ts       ✅ Socket.IO manager
 │   │   │   │   ├── mcp-server.ts      ✅ Built-in MCP server (SSE + stdio transports)
-│   │   │   │   └── mcp-client.ts      ✅ MCP client manager (connect to external servers)
+│   │   │   │   ├── mcp-client.ts      ✅ MCP client manager (connect to external servers)
+│   │   │   │   └── memory.ts         ✅ ChromaDB + Obsidian vault memory service
 │   │   │   │
 │   │   │   └── types/
 │   │   │       └── index.ts           Re-exports from @claude-agent/shared
@@ -166,7 +176,7 @@ claude-cloud-agent/
 │           │   ├── sessions/page.tsx  ✅ Live session table with filters + WebSocket updates
 │           │   ├── agents/page.tsx    🔧 Agent team configuration (placeholder)
 │           │   ├── tools/page.tsx     ✅ Tool registry + live execution log
-│           │   ├── memory/page.tsx    🔧 Obsidian vault + vector search (placeholder)
+│           │   ├── memory/page.tsx    ✅ Memory search, store, vault status
 │           │   ├── mcp/page.tsx       ✅ MCP server management + marketplace
 │           │   ├── plugins/page.tsx   🔧 Plugin marketplace (placeholder)
 │           │   └── settings/page.tsx  ✅ Editable model config, budgets, API keys, channels
@@ -285,6 +295,10 @@ export const MyToolModule: ToolModule = {
 | `/api/mcp/servers` | POST | Add external MCP server |
 | `/api/mcp/servers/:id` | DELETE | Remove external MCP server |
 | `/api/mcp/servers/:id/toggle` | PUT | Enable/disable external MCP server |
+| `/api/memory/status` | GET | Memory/vault status (note count, ChromaDB, watcher) |
+| `/api/memory/search` | GET | Semantic memory search (query: q, limit) |
+| `/api/memory/recent` | GET | Recent memories (query: limit) |
+| `/api/memory` | POST | Store a new memory (body: content, title, tags) |
 | `/mcp/sse` | GET | MCP SSE transport endpoint (for Claude Desktop) |
 | `/mcp/messages` | POST | MCP SSE message endpoint |
 | `/api/settings` | GET | Get all settings |
@@ -369,6 +383,6 @@ npm run setup-google  # Google OAuth setup
 | 2 | Live Dashboard | **COMPLETE** | Live stats, sessions table, tool execution log, editable settings, WebSocket activity feed |
 | 3 | Multi-Model Router | **COMPLETE** | Heuristic model routing, cost tracking, budget management, selective tools, dashboard integration |
 | 4 | MCP Integration | **COMPLETE** | Built-in MCP server, external MCP client, Claude Desktop/Code connectivity, dashboard management |
-| 5 | Obsidian AI Brain | PENDING | ChromaDB vector memory, bidirectional Obsidian sync |
+| 5 | Obsidian AI Brain | **COMPLETE** | ChromaDB vector memory, Obsidian vault sync, memory tools, dashboard |
 | 6 | Agent Teams | PENDING | Coordinator, Researcher, Coder, Planner, Executor agents |
 | 7 | Plugins & Channels | PENDING | Plugin system, activate Telegram/Slack/WhatsApp/Discord |

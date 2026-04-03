@@ -19,10 +19,13 @@
     "@anthropic-ai/sdk": "^0.82.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^9.6.0",
+    "chokidar": "^5.0.0",
+    "chromadb": "^3.4.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.36.0",
     "express": "^4.21.2",
     "googleapis": "^144.0.0",
+    "gray-matter": "^4.0.3",
     "socket.io": "^4.8.0",
     "twilio": "^5.4.5",
     "uuid": "^11.0.0"
