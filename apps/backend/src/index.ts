@@ -22,6 +22,8 @@ import { DatetimeToolModule } from './tools/utility/datetime.js';
 // ── Core Services ─────────────────────────────────────────────────────────────
 import { ToolRegistry }  from './agent/tool-registry.js';
 import { Assistant }     from './agent/assistant.js';
+import { ModelRouter }   from './agent/model-router.js';
+import { CostTracker }   from './agent/cost-tracker.js';
 import { MessageRouter } from './services/message-router.js';
 
 // ── Validate required environment variables ───────────────────────────────────
@@ -53,15 +55,17 @@ const channels = [
 ];
 
 // ── Wire up agent & router ────────────────────────────────────────────────────
-const assistant = new Assistant(toolRegistry);
+const modelRouter = new ModelRouter();
+const costTracker = new CostTracker();
+const assistant = new Assistant(toolRegistry, modelRouter, costTracker);
 const messageRouter = new MessageRouter(assistant);
 
 // ── Start server ──────────────────────────────────────────────────────────────
-const { httpServer } = createServer(channels, messageRouter, toolRegistry);
+const { httpServer } = createServer(channels, messageRouter, toolRegistry, costTracker, modelRouter);
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
 httpServer.listen(port, () => {
-  console.log(`\n[Claude Cloud Agent v2.0] Running on port ${port}`);
+  console.log(`\n[Claude Cloud Agent v3.0] Running on port ${port}`);
   console.log(`  Health:    http://localhost:${port}/health`);
   console.log(`  API:       http://localhost:${port}/api/`);
   console.log(`  WebSocket: ws://localhost:${port}/ws`);

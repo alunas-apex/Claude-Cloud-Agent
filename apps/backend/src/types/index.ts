@@ -113,6 +113,50 @@ export const MODELS: Record<ModelTier, ModelConfig> = {
   },
 };
 
+// ── Routing Decision ─────────────────────────────────────────────────────────
+
+export interface RoutingRequest {
+  message: string;
+  conversationLength: number;
+  toolsRequired?: string[];
+  channel?: string;
+  budgetRemaining?: number;
+}
+
+export interface RoutingDecision {
+  modelId: string;
+  tier: ModelTier;
+  maxTokens: number;
+  reason: string;
+  estimatedInputCost: number;
+  estimatedOutputCost: number;
+  fallbackChain: string[];
+}
+
+// ── Tool Categories ──────────────────────────────────────────────────────────
+
+export type ToolCategory = 'google' | 'utility' | 'mcp' | 'plugin' | 'system' | 'admin' | 'cloud';
+
+// ── Budget ───────────────────────────────────────────────────────────────────
+
+export interface BudgetStatus {
+  dailyBudgetUsd: number;
+  dailySpentUsd: number;
+  dailyRemainingUsd: number;
+  sessionBudgetUsd: number;
+  sessionSpentUsd: number;
+  sessionRemainingUsd: number;
+  isOverBudget: boolean;
+  autoDowngrade: boolean;
+}
+
+// ── Cost Breakdown ───────────────────────────────────────────────────────────
+
+export interface CostBreakdown {
+  byModel: Record<string, { tokensIn: number; tokensOut: number; costUsd: number; requests: number }>;
+  total: { tokensIn: number; tokensOut: number; costUsd: number; requests: number };
+}
+
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_HISTORY_LIMIT = 20;
 export const MAX_TOOL_ITERATIONS = 10;
