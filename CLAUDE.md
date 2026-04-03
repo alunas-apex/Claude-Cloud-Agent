@@ -167,7 +167,7 @@ claude-cloud-agent/
 │           │   ├── agents/page.tsx    🔧 Agent team configuration (placeholder)
 │           │   ├── tools/page.tsx     ✅ Tool registry + live execution log
 │           │   ├── memory/page.tsx    🔧 Obsidian vault + vector search (placeholder)
-│           │   ├── mcp/page.tsx       🔧 MCP server management (placeholder)
+│           │   ├── mcp/page.tsx       ✅ MCP server management + marketplace
 │           │   ├── plugins/page.tsx   🔧 Plugin marketplace (placeholder)
 │           │   └── settings/page.tsx  ✅ Editable model config, budgets, API keys, channels
 │           ├── components/
@@ -323,7 +323,7 @@ npm run setup-google  # Google OAuth setup
 - **Events**: EventBus decouples components; Socket.IO forwards events to dashboard
 - **Channels**: Twilio SMS active; Telegram, Slack, WhatsApp ready to activate
 - **Tools**: 39+ tools across Gmail, Calendar, GCP, Admin, datetime; extensible via ToolModule interface
-- **Token optimization**: Planned selective tool inclusion, conversation summarization, model routing
+- **Token optimization**: Selective tool inclusion, tool result truncation, heuristic model routing
 - **Data directory**: `data/` is gitignored — contains SQLite DB, Google tokens, Obsidian vault
 
 ---
