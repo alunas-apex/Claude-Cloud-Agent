@@ -2,11 +2,13 @@ import express from 'express';
 import http from 'http';
 import { Channel } from './channels/base.js';
 import { MessageRouter } from './services/message-router.js';
+import { ToolRegistry } from './agent/tool-registry.js';
 import { initWebSocket } from './services/websocket.js';
 
 export function createServer(
   channels: Channel[],
-  router: MessageRouter
+  router: MessageRouter,
+  toolRegistry?: ToolRegistry
 ): { app: express.Express; httpServer: http.Server } {
   const app = express();
   const httpServer = http.createServer(app);
@@ -56,6 +58,19 @@ export function createServer(
     if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
     const messages = getSessionMessages(req.params.id);
     res.json({ ...session, messages });
+  });
+
+  // List registered tools
+  app.get('/api/tools', (_req, res) => {
+    if (!toolRegistry) {
+      res.json([]);
+      return;
+    }
+    const tools = toolRegistry.getTools().map((t) => ({
+      name: t.name,
+      description: t.description,
+    }));
+    res.json(tools);
   });
 
   app.get('/api/tools/executions', async (_req, res) => {

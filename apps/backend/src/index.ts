@@ -57,7 +57,7 @@ const assistant = new Assistant(toolRegistry);
 const messageRouter = new MessageRouter(assistant);
 
 // ── Start server ──────────────────────────────────────────────────────────────
-const { httpServer } = createServer(channels, messageRouter);
+const { httpServer } = createServer(channels, messageRouter, toolRegistry);
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
 httpServer.listen(port, () => {

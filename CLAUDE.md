@@ -8,12 +8,17 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
 
 ## What It Does
 
-### Current (v2.0 — Phase 1 Foundation)
+### Current (v2.0 — Phase 2 Live Dashboard)
 - **SMS Agent**: Text your Twilio number in plain English for Gmail, Calendar, GCP, and Admin tasks
-- **Web Dashboard**: Real-time command center UI at `localhost:3001` with session, tool, and settings management
+- **Live Dashboard**: Real-time command center at `localhost:3001` wired to backend via REST API + WebSocket
+  - Dashboard home with live stats (sessions, cost, uptime), system health indicators, real-time activity feed
+  - Sessions page with live table, search, channel/status filters, real-time updates via Socket.IO
+  - Tools page with registered tool registry + live execution log with expandable input/output
+  - Settings page with editable model config, budget limits, API key status, channel toggles
+  - Active navigation sidebar with route highlighting
 - **WebSocket**: Real-time event streaming between backend and dashboard via Socket.IO
 - **Enhanced Database**: Sessions, messages, tool executions, cost ledger, settings, and plugin registry
-- **API**: REST endpoints for sessions, tools, costs, and settings at `/api/*`
+- **API**: REST endpoints for sessions, tools (list + executions), costs, and settings at `/api/*`
 
 ### Planned (Phases 2-7)
 - **Multi-Model Routing**: Auto-route to Haiku/Sonnet/Opus based on task complexity
@@ -131,15 +136,23 @@ claude-cloud-agent/
 │   │       └── setup-google-auth.ts   Google OAuth setup
 │   │
 │   └── dashboard/                      Next.js command center UI
-│       └── src/app/
-│           ├── page.tsx               Dashboard home (stats + health)
-│           ├── sessions/              Session management
-│           ├── agents/                Agent team configuration
-│           ├── tools/                 Tool registry + execution log
-│           ├── memory/                Obsidian vault + vector search
-│           ├── mcp/                   MCP server management
-│           ├── plugins/               Plugin marketplace
-│           └── settings/              Model config, budgets, API keys, channels
+│       └── src/
+│           ├── app/
+│           │   ├── page.tsx           ✅ Dashboard home (live stats + health + activity feed)
+│           │   ├── sessions/page.tsx  ✅ Live session table with filters + WebSocket updates
+│           │   ├── agents/page.tsx    🔧 Agent team configuration (placeholder)
+│           │   ├── tools/page.tsx     ✅ Tool registry + live execution log
+│           │   ├── memory/page.tsx    🔧 Obsidian vault + vector search (placeholder)
+│           │   ├── mcp/page.tsx       🔧 MCP server management (placeholder)
+│           │   ├── plugins/page.tsx   🔧 Plugin marketplace (placeholder)
+│           │   └── settings/page.tsx  ✅ Editable model config, budgets, API keys, channels
+│           ├── components/
+│           │   └── Sidebar.tsx        ✅ Active nav sidebar with route highlighting
+│           ├── hooks/
+│           │   ├── use-api.ts         ✅ REST API data hooks (polling)
+│           │   └── use-socket.ts      ✅ WebSocket connection hook
+│           └── lib/
+│               └── api.ts             ✅ REST API client
 │
 ├── packages/
 │   └── shared/                         Shared types + constants
@@ -233,9 +246,10 @@ export const MyToolModule: ToolModule = {
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/health` | GET | Health check + version + uptime |
+| `/health` | GET | Health check + version + uptime + channels |
 | `/api/sessions` | GET | List all sessions (paginated) |
 | `/api/sessions/:id` | GET | Get session with messages |
+| `/api/tools` | GET | List all registered tools (name + description) |
 | `/api/tools/executions` | GET | Tool execution log (paginated) |
 | `/api/cost/today` | GET | Today's total cost |
 | `/api/settings` | GET | Get all settings |
@@ -317,7 +331,7 @@ npm run setup-google  # Google OAuth setup
 | Phase | Name | Status | Description |
 |-------|------|--------|-------------|
 | 1 | Foundation | **COMPLETE** | Turborepo monorepo, Next.js dashboard shell, enhanced DB, EventBus, Socket.IO, REST API |
-| 2 | Live Dashboard | PENDING | Wire dashboard to live backend data via WebSocket + API |
+| 2 | Live Dashboard | **COMPLETE** | Live stats, sessions table, tool execution log, editable settings, WebSocket activity feed |
 | 3 | Multi-Model Router | PENDING | Haiku/Sonnet/Opus routing, cost tracking, budget management |
 | 4 | MCP Integration | PENDING | Built-in MCP server, Claude Desktop/Code connectivity |
 | 5 | Obsidian AI Brain | PENDING | ChromaDB vector memory, bidirectional Obsidian sync |
