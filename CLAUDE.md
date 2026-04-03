@@ -286,3 +286,40 @@ npm run setup-google  # Google OAuth setup
 - No user data sent to third parties beyond configured services
 - Dashboard API has CORS configured for localhost
 - API keys stored encrypted in database (when using settings UI)
+
+---
+
+## Claude Code Autonomous Workflow Rules
+
+**These rules are MANDATORY for all Claude Code sessions working on this project.**
+
+### After Every Task or Phase Completion:
+
+1. **Update Docs First**: Update this CLAUDE.md file and any other .md files to reflect current state — architecture, file tree, API docs, phase status, dependency changes.
+
+2. **Auto-Commit**: Stage and commit all changes with a descriptive message. Do not wait to be asked.
+
+3. **Auto-Push**: Push to the current remote branch immediately after committing. Use `git push -u origin <branch-name>`. Retry up to 4 times with exponential backoff on network failure.
+
+4. **Auto-PR**: After completing a full phase or major feature, create a pull request using GitHub MCP tools (`mcp__github__create_pull_request`). Include:
+   - Summary of all changes (bullet points)
+   - Test plan
+   - Phase number and what was accomplished
+
+5. **Auto-Merge**: After PR creation, enable auto-merge using `mcp__github__enable_pr_auto_merge` or `mcp__github__merge_pull_request`.
+
+6. **Use All Tools**: Leverage all available GitHub MCP tools, skills, plugins, and connectors. Use the full toolset to maximize automation.
+
+7. **Phase Tracking**: Update the phase roadmap below after completing each phase.
+
+### Phase Roadmap Status
+
+| Phase | Name | Status | Description |
+|-------|------|--------|-------------|
+| 1 | Foundation | **COMPLETE** | Turborepo monorepo, Next.js dashboard shell, enhanced DB, EventBus, Socket.IO, REST API |
+| 2 | Live Dashboard | PENDING | Wire dashboard to live backend data via WebSocket + API |
+| 3 | Multi-Model Router | PENDING | Haiku/Sonnet/Opus routing, cost tracking, budget management |
+| 4 | MCP Integration | PENDING | Built-in MCP server, Claude Desktop/Code connectivity |
+| 5 | Obsidian AI Brain | PENDING | ChromaDB vector memory, bidirectional Obsidian sync |
+| 6 | Agent Teams | PENDING | Coordinator, Researcher, Coder, Planner, Executor agents |
+| 7 | Plugins & Channels | PENDING | Plugin system, activate Telegram/Slack/WhatsApp/Discord |
