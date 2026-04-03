@@ -8,13 +8,14 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
 
 ## What It Does
 
-### Current (v3.0 — Phase 3 Multi-Model Router)
+### Current (v4.0 — Phase 4 MCP Integration)
 - **SMS Agent**: Text your Twilio number in plain English for Gmail, Calendar, GCP, and Admin tasks
 - **Live Dashboard**: Real-time command center at `localhost:3001` wired to backend via REST API + WebSocket
   - Dashboard home with live stats, model usage breakdown, budget status, health indicators, activity feed
   - Sessions page with live table, search, channel/status filters, real-time updates via Socket.IO
   - Tools page with registered tool registry + live execution log with expandable input/output
   - Settings page with editable model config, budget limits, API key status, channel toggles
+  - MCP page with built-in server status, external server management, and marketplace
   - Active navigation sidebar with route highlighting
 - **Multi-Model Intelligence Router**: Automatic Haiku/Sonnet/Opus selection based on task complexity
   - Heuristic-based complexity scoring (0-100) — no LLM overhead for classification
@@ -28,12 +29,18 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
   - Per-model breakdown (tokens in/out, cost, request count)
   - Daily and per-session budget limits with auto-enforcement
   - Cost events streamed to dashboard via WebSocket
+- **MCP Integration**: Model Context Protocol server and client
+  - Built-in MCP server exposing all 39+ tools via SSE and stdio transports
+  - Claude Desktop / Claude Code connectivity via `mcp-stdio.ts` entry point
+  - MCP client manager for connecting to external MCP servers (stdio + SSE)
+  - Auto-discovery and import of external server tools into ToolRegistry
+  - Dashboard page for managing MCP server connections with marketplace
+  - Persistent server configs stored in SQLite `mcp_servers` table
 - **WebSocket**: Real-time event streaming between backend and dashboard via Socket.IO
 - **Enhanced Database**: Sessions, messages, tool executions, cost ledger, settings, and plugin registry
-- **API**: REST endpoints for sessions, tools, costs, budget, model routing, and settings at `/api/*`
+- **API**: REST endpoints for sessions, tools, costs, budget, model routing, MCP, and settings at `/api/*`
 
-### Planned (Phases 4-7)
-- **MCP Integration**: Expose tools to Claude Desktop/Code; connect to external MCP servers
+### Planned (Phases 5-7)
 - **Obsidian AI Brain**: Persistent vector memory with bidirectional Obsidian vault sync
 - **Agent Teams**: Coordinator, Researcher, Coder, Planner, Executor agents that collaborate
 - **Plugin System**: Hot-loadable plugins with marketplace
@@ -115,6 +122,8 @@ claude-cloud-agent/
 │   │   │   │   ├── cost-tracker.ts    ✅ Token usage, cost calculation, budget enforcement
 │   │   │   │   └── tool-registry.ts   Aggregates all ToolModules (category-aware, selective inclusion)
 │   │   │   │
+│   │   │   ├── mcp-stdio.ts          ✅ Standalone MCP stdio entry point for Claude Desktop/Code
+│   │   │   │
 │   │   │   ├── channels/              Messaging channel adapters
 │   │   │   │   ├── base.ts            Channel interface + ChannelCapabilities
 │   │   │   │   ├── twilio/            ✅ Active — SMS via Twilio
@@ -140,7 +149,9 @@ claude-cloud-agent/
 │   │   │   │   ├── database.ts        SQLite — v1 (conversations) + v2 (sessions, cost, tools)
 │   │   │   │   ├── message-router.ts  Channel-agnostic message handler
 │   │   │   │   ├── event-bus.ts       ✅ Central event system
-│   │   │   │   └── websocket.ts       ✅ Socket.IO manager
+│   │   │   │   ├── websocket.ts       ✅ Socket.IO manager
+│   │   │   │   ├── mcp-server.ts      ✅ Built-in MCP server (SSE + stdio transports)
+│   │   │   │   └── mcp-client.ts      ✅ MCP client manager (connect to external servers)
 │   │   │   │
 │   │   │   └── types/
 │   │   │       └── index.ts           Re-exports from @claude-agent/shared
@@ -269,6 +280,13 @@ export const MyToolModule: ToolModule = {
 | `/api/budget` | GET | Budget status (daily/session limits, remaining, over-budget) |
 | `/api/model/route` | GET | Test model routing for a message (query: message, conversationLength) |
 | `/api/tools/categories` | GET | Tool count per category |
+| `/api/mcp/server/status` | GET | Built-in MCP server status |
+| `/api/mcp/servers` | GET | List external MCP server connections |
+| `/api/mcp/servers` | POST | Add external MCP server |
+| `/api/mcp/servers/:id` | DELETE | Remove external MCP server |
+| `/api/mcp/servers/:id/toggle` | PUT | Enable/disable external MCP server |
+| `/mcp/sse` | GET | MCP SSE transport endpoint (for Claude Desktop) |
+| `/mcp/messages` | POST | MCP SSE message endpoint |
 | `/api/settings` | GET | Get all settings |
 | `/api/settings` | PUT | Update a setting |
 | `/webhook/sms` | POST | Twilio SMS webhook |
@@ -350,7 +368,7 @@ npm run setup-google  # Google OAuth setup
 | 1 | Foundation | **COMPLETE** | Turborepo monorepo, Next.js dashboard shell, enhanced DB, EventBus, Socket.IO, REST API |
 | 2 | Live Dashboard | **COMPLETE** | Live stats, sessions table, tool execution log, editable settings, WebSocket activity feed |
 | 3 | Multi-Model Router | **COMPLETE** | Heuristic model routing, cost tracking, budget management, selective tools, dashboard integration |
-| 4 | MCP Integration | PENDING | Built-in MCP server, Claude Desktop/Code connectivity |
+| 4 | MCP Integration | **COMPLETE** | Built-in MCP server, external MCP client, Claude Desktop/Code connectivity, dashboard management |
 | 5 | Obsidian AI Brain | PENDING | ChromaDB vector memory, bidirectional Obsidian sync |
 | 6 | Agent Teams | PENDING | Coordinator, Researcher, Coder, Planner, Executor agents |
 | 7 | Plugins & Channels | PENDING | Plugin system, activate Telegram/Slack/WhatsApp/Discord |

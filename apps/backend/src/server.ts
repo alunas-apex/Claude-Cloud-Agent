@@ -5,15 +5,22 @@ import { MessageRouter } from './services/message-router.js';
 import { ToolRegistry } from './agent/tool-registry.js';
 import { CostTracker } from './agent/cost-tracker.js';
 import { ModelRouter } from './agent/model-router.js';
+import { McpServerManager } from './services/mcp-server.js';
+import { McpClientManager } from './services/mcp-client.js';
 import { initWebSocket } from './services/websocket.js';
 
-export function createServer(
-  channels: Channel[],
-  router: MessageRouter,
-  toolRegistry?: ToolRegistry,
-  costTracker?: CostTracker,
-  modelRouter?: ModelRouter
-): { app: express.Express; httpServer: http.Server } {
+interface ServerDeps {
+  channels: Channel[];
+  router: MessageRouter;
+  toolRegistry?: ToolRegistry;
+  costTracker?: CostTracker;
+  modelRouter?: ModelRouter;
+  mcpServer?: McpServerManager;
+  mcpClient?: McpClientManager;
+}
+
+export function createServer(deps: ServerDeps): { app: express.Express; httpServer: http.Server } {
+  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient } = deps;
   const app = express();
   const httpServer = http.createServer(app);
 
@@ -40,7 +47,7 @@ export function createServer(
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
-      version: '3.0.0',
+      version: '4.0.0',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       channels: channels.map((c) => c.name),
@@ -128,6 +135,58 @@ export function createServer(
     if (!toolRegistry) { res.json({}); return; }
     res.json(toolRegistry.getCategoryCounts());
   });
+
+  // ── MCP API (Phase 4) ───────────────────────────────────────────────────
+
+  // Built-in MCP server status
+  app.get('/api/mcp/server/status', (_req, res) => {
+    if (!mcpServer) { res.json({ enabled: false }); return; }
+    res.json({ enabled: true, ...mcpServer.getStatus() });
+  });
+
+  // External MCP server management
+  app.get('/api/mcp/servers', (_req, res) => {
+    if (!mcpClient) { res.json([]); return; }
+    res.json(mcpClient.getServers());
+  });
+
+  app.post('/api/mcp/servers', async (req, res) => {
+    if (!mcpClient) { res.status(503).json({ error: 'MCP client not initialized' }); return; }
+    const { id, name, command, args, url, env, enabled } = req.body;
+    if (!id || !name) { res.status(400).json({ error: 'id and name required' }); return; }
+    try {
+      await mcpClient.addServer({ id, name, command, args, url, env, enabled: enabled !== false });
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/mcp/servers/:id', async (req, res) => {
+    if (!mcpClient) { res.status(503).json({ error: 'MCP client not initialized' }); return; }
+    try {
+      await mcpClient.removeServer(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/mcp/servers/:id/toggle', async (req, res) => {
+    if (!mcpClient) { res.status(503).json({ error: 'MCP client not initialized' }); return; }
+    const { enabled } = req.body;
+    try {
+      await mcpClient.toggleServer(req.params.id, enabled);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Register MCP SSE endpoints on the Express app
+  if (mcpServer) {
+    mcpServer.registerSseEndpoints(app);
+  }
 
   // Register all channel webhooks
   const onMessage = (msg: import('./channels/base.js').IncomingMessage) => router.handle(msg);

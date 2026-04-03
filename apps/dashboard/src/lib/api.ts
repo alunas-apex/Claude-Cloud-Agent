@@ -38,6 +38,15 @@ export const api = {
       estimatedInputCost: number; estimatedOutputCost: number; fallbackChain: string[];
     }>(`/api/model/route?message=${encodeURIComponent(message)}&conversationLength=${conversationLength}`),
   },
+  mcp: {
+    serverStatus: () => fetchAPI<{ enabled: boolean; toolCount: number; sseClients: number; transports: string[] }>('/api/mcp/server/status'),
+    listServers: () => fetchAPI<Array<{ id: string; name: string; command?: string; url?: string; enabled: boolean; connected: boolean; toolCount: number }>>('/api/mcp/servers'),
+    addServer: (server: { id: string; name: string; command?: string; args?: string[]; url?: string; env?: Record<string, string>; enabled?: boolean }) =>
+      fetchAPI<{ ok: boolean }>('/api/mcp/servers', { method: 'POST', body: JSON.stringify(server) }),
+    removeServer: (id: string) => fetchAPI<{ ok: boolean }>(`/api/mcp/servers/${id}`, { method: 'DELETE' }),
+    toggleServer: (id: string, enabled: boolean) =>
+      fetchAPI<{ ok: boolean }>(`/api/mcp/servers/${id}/toggle`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
+  },
   settings: {
     getAll: () => fetchAPI<any[]>('/api/settings'),
     update: (key: string, value: string) => fetchAPI<{ ok: boolean }>('/api/settings', {

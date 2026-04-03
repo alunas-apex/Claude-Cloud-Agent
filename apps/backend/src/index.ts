@@ -20,11 +20,13 @@ import { DatetimeToolModule } from './tools/utility/datetime.js';
 // import { ZoomToolModule }   from './tools/zoom/index.js';    // Uncomment to activate
 
 // ── Core Services ─────────────────────────────────────────────────────────────
-import { ToolRegistry }  from './agent/tool-registry.js';
-import { Assistant }     from './agent/assistant.js';
-import { ModelRouter }   from './agent/model-router.js';
-import { CostTracker }   from './agent/cost-tracker.js';
-import { MessageRouter } from './services/message-router.js';
+import { ToolRegistry }      from './agent/tool-registry.js';
+import { Assistant }         from './agent/assistant.js';
+import { ModelRouter }       from './agent/model-router.js';
+import { CostTracker }       from './agent/cost-tracker.js';
+import { MessageRouter }     from './services/message-router.js';
+import { McpServerManager }  from './services/mcp-server.js';
+import { McpClientManager }  from './services/mcp-client.js';
 
 // ── Validate required environment variables ───────────────────────────────────
 const required = ['ANTHROPIC_API_KEY'];
@@ -60,30 +62,48 @@ const costTracker = new CostTracker();
 const assistant = new Assistant(toolRegistry, modelRouter, costTracker);
 const messageRouter = new MessageRouter(assistant);
 
+// ── Wire up MCP ───────────────────────────────────────────────────────────────
+const mcpServer = new McpServerManager(toolRegistry);
+const mcpClient = new McpClientManager(toolRegistry);
+
 // ── Start server ──────────────────────────────────────────────────────────────
-const { httpServer } = createServer(channels, messageRouter, toolRegistry, costTracker, modelRouter);
+const { httpServer } = createServer({
+  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient,
+});
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
-httpServer.listen(port, () => {
-  console.log(`\n[Claude Cloud Agent v3.0] Running on port ${port}`);
+httpServer.listen(port, async () => {
+  console.log(`\n[Claude Cloud Agent v4.0] Running on port ${port}`);
   console.log(`  Health:    http://localhost:${port}/health`);
   console.log(`  API:       http://localhost:${port}/api/`);
+  console.log(`  MCP SSE:   http://localhost:${port}/mcp/sse`);
   console.log(`  WebSocket: ws://localhost:${port}/ws`);
   console.log(`  Dashboard: http://localhost:3001 (run 'npm run dev:dashboard')`);
   console.log(`  Channels:  ${channels.map((c) => c.name).join(', ')}`);
   console.log(`  Tools:     ${toolRegistry.getTools().length} tools registered`);
+
+  // Initialize MCP client connections (connect to external servers)
+  try {
+    await mcpClient.initialize();
+    const connected = mcpClient.getConnectedIds();
+    if (connected.length > 0) {
+      console.log(`  MCP:       ${connected.length} external server(s) connected`);
+    }
+  } catch (err: any) {
+    console.warn(`  MCP:       External server initialization error: ${err.message}`);
+  }
+
   console.log('\n  Ready to receive messages.\n');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('[Shutdown] SIGTERM received, shutting down gracefully...');
+const shutdown = async (signal: string) => {
+  console.log(`[Shutdown] ${signal} received, shutting down gracefully...`);
+  await mcpClient.closeAll();
+  await mcpServer.close();
   httpServer.close();
   process.exit(0);
-});
+};
 
-process.on('SIGINT', () => {
-  console.log('[Shutdown] SIGINT received, shutting down gracefully...');
-  httpServer.close();
-  process.exit(0);
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
