@@ -48,8 +48,16 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
   - Fallback to keyword-based file search when ChromaDB is unavailable
   - Dashboard memory page with search, store, and vault status panels
 
-### Planned (Phases 6-7)
-- **Agent Teams**: Coordinator, Researcher, Coder, Planner, Executor agents that collaborate
+- **Agent Teams**: Multi-agent collaboration with task delegation and synthesis
+  - Coordinator agent decomposes tasks, delegates to specialists, synthesizes results
+  - Researcher agent for information gathering and analysis (Sonnet)
+  - Coder agent for code generation, debugging, GCP operations (Opus)
+  - Planner agent for strategy, architecture, multi-step planning (Opus)
+  - Executor agent for simple tool calls and routine operations (Haiku)
+  - Dashboard page with agent status, task runner, and execution history
+  - REST API: list agents, run tasks, get task history
+
+### Planned (Phase 7)
 - **Plugin System**: Hot-loadable plugins with marketplace
 - **More Channels**: Telegram, Slack, WhatsApp, Discord, Email (stubs ready to activate)
 
@@ -123,6 +131,11 @@ claude-cloud-agent/
 │   │   │   ├── index.ts               Entry point — register channels & tools
 │   │   │   ├── server.ts              Express + Socket.IO + API routes
 │   │   │   │
+│   │   │   ├── agents/                Agent team system
+│   │   │   │   ├── base.ts           ✅ SpecialistAgent base class + types
+│   │   │   │   ├── specialists.ts    ✅ Pre-configured agent configs (5 roles)
+│   │   │   │   └── team.ts           ✅ AgentTeam coordinator + task delegation
+│   │   │   │
 │   │   │   ├── agent/                 Core agent logic
 │   │   │   │   ├── assistant.ts       Claude agentic loop (multi-model, tool use, cost tracking)
 │   │   │   │   ├── model-router.ts    ✅ Heuristic complexity scorer → Haiku/Sonnet/Opus selection
@@ -174,7 +187,7 @@ claude-cloud-agent/
 │           ├── app/
 │           │   ├── page.tsx           ✅ Dashboard home (live stats + health + activity feed)
 │           │   ├── sessions/page.tsx  ✅ Live session table with filters + WebSocket updates
-│           │   ├── agents/page.tsx    🔧 Agent team configuration (placeholder)
+│           │   ├── agents/page.tsx    ✅ Agent team status, task runner, history
 │           │   ├── tools/page.tsx     ✅ Tool registry + live execution log
 │           │   ├── memory/page.tsx    ✅ Memory search, store, vault status
 │           │   ├── mcp/page.tsx       ✅ MCP server management + marketplace
@@ -285,6 +298,10 @@ export const MyToolModule: ToolModule = {
 | `/api/sessions/:id` | GET | Get session with messages |
 | `/api/tools` | GET | List all registered tools (name + description) |
 | `/api/tools/executions` | GET | Tool execution log (paginated) |
+| `/api/agents` | GET | List all agent team members (role, status, tasks) |
+| `/api/agents/:role` | GET | Get specific agent info |
+| `/api/agents/tasks/history` | GET | Recent task execution history |
+| `/api/agents/run` | POST | Run a task through the agent team |
 | `/api/cost/today` | GET | Today's total cost |
 | `/api/cost/breakdown` | GET | Cost breakdown by model (tokens, cost, requests) |
 | `/api/budget` | GET | Budget status (daily/session limits, remaining, over-budget) |
@@ -384,5 +401,5 @@ npm run setup-google  # Google OAuth setup
 | 3 | Multi-Model Router | **COMPLETE** | Heuristic model routing, cost tracking, budget management, selective tools, dashboard integration |
 | 4 | MCP Integration | **COMPLETE** | Built-in MCP server, external MCP client, Claude Desktop/Code connectivity, dashboard management |
 | 5 | Obsidian AI Brain | **COMPLETE** | ChromaDB vector memory, Obsidian vault sync, memory tools, dashboard |
-| 6 | Agent Teams | PENDING | Coordinator, Researcher, Coder, Planner, Executor agents |
+| 6 | Agent Teams | **COMPLETE** | Coordinator, Researcher, Coder, Planner, Executor agents with delegation |
 | 7 | Plugins & Channels | PENDING | Plugin system, activate Telegram/Slack/WhatsApp/Discord |

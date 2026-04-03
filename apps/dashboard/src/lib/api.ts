@@ -38,6 +38,12 @@ export const api = {
       estimatedInputCost: number; estimatedOutputCost: number; fallbackChain: string[];
     }>(`/api/model/route?message=${encodeURIComponent(message)}&conversationLength=${conversationLength}`),
   },
+  agents: {
+    list: () => fetchAPI<Array<{ role: string; name: string; description: string; modelTier: string; modelId: string; status: string; tasksCompleted: number; toolCategories: string[] }>>('/api/agents'),
+    get: (role: string) => fetchAPI<any>(`/api/agents/${role}`),
+    taskHistory: (limit = 10) => fetchAPI<Array<{ id: string; instruction: string; status: string; agents: string[]; durationMs: number }>>(`/api/agents/tasks/history?limit=${limit}`),
+    run: (instruction: string) => fetchAPI<{ ok: boolean; result: string }>('/api/agents/run', { method: 'POST', body: JSON.stringify({ instruction }) }),
+  },
   memory: {
     status: () => fetchAPI<{ path: string; exists: boolean; noteCount: number; indexedCount: number; watching: boolean; chromaAvailable: boolean }>('/api/memory/status'),
     search: (q: string, limit = 5) => fetchAPI<Array<{ id: string; content: string; metadata: Record<string, any>; source: string; similarity?: number }>>(`/api/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`),

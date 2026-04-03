@@ -8,6 +8,7 @@ import { ModelRouter } from './agent/model-router.js';
 import { McpServerManager } from './services/mcp-server.js';
 import { McpClientManager } from './services/mcp-client.js';
 import { MemoryService } from './services/memory.js';
+import { AgentTeam } from './agents/team.js';
 import { initWebSocket } from './services/websocket.js';
 
 interface ServerDeps {
@@ -19,10 +20,11 @@ interface ServerDeps {
   mcpServer?: McpServerManager;
   mcpClient?: McpClientManager;
   memory?: MemoryService;
+  agentTeam?: AgentTeam;
 }
 
 export function createServer(deps: ServerDeps): { app: express.Express; httpServer: http.Server } {
-  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory } = deps;
+  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory, agentTeam } = deps;
   const app = express();
   const httpServer = http.createServer(app);
 
@@ -136,6 +138,38 @@ export function createServer(deps: ServerDeps): { app: express.Express; httpServ
   app.get('/api/tools/categories', (_req, res) => {
     if (!toolRegistry) { res.json({}); return; }
     res.json(toolRegistry.getCategoryCounts());
+  });
+
+  // ── Agent Team API (Phase 6) ────────────────────────────────────────────
+
+  app.get('/api/agents', (_req, res) => {
+    if (!agentTeam) { res.json([]); return; }
+    res.json(agentTeam.getAgents());
+  });
+
+  app.get('/api/agents/:role', (req, res) => {
+    if (!agentTeam) { res.status(404).json({ error: 'Agent team not initialized' }); return; }
+    const agent = agentTeam.getAgent(req.params.role as any);
+    if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
+    res.json(agent);
+  });
+
+  app.get('/api/agents/tasks/history', (_req, res) => {
+    if (!agentTeam) { res.json([]); return; }
+    const limit = parseInt(String(_req.query.limit || '10'), 10);
+    res.json(agentTeam.getTaskHistory(limit));
+  });
+
+  app.post('/api/agents/run', async (req, res) => {
+    if (!agentTeam) { res.status(503).json({ error: 'Agent team not initialized' }); return; }
+    const { instruction } = req.body;
+    if (!instruction) { res.status(400).json({ error: 'instruction required' }); return; }
+    try {
+      const result = await agentTeam.run(instruction);
+      res.json({ ok: true, result });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // ── Memory API (Phase 5) ────────────────────────────────────────────────

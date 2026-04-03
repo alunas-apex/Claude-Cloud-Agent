@@ -391,8 +391,8 @@ export const MyChannel: Channel = {
 <tr>
 <td align="center">6</td>
 <td>Agent Teams</td>
-<td align="center">&#9744;</td>
-<td>Coordinator, Researcher, Coder, Planner, Executor agents</td>
+<td align="center">&#9989;</td>
+<td>Coordinator, Researcher, Coder, Planner, Executor with task delegation</td>
 </tr>
 <tr>
 <td align="center">7</td>
