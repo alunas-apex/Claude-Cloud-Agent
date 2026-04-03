@@ -1,4 +1,5 @@
 import { Express } from 'express';
+import type { ChannelCapabilities } from '../types/index.js';
 
 /**
  * Normalized message from any messaging channel.
@@ -6,7 +7,7 @@ import { Express } from 'express';
  * can handle any channel without knowing its specifics.
  */
 export interface IncomingMessage {
-  /** Channel name: 'twilio' | 'telegram' | 'slack' | 'whatsapp' */
+  /** Channel name: 'twilio' | 'telegram' | 'slack' | 'whatsapp' | 'webchat' | 'discord' */
   channel: string;
   /** Stable user identifier: phone number, Telegram chat ID, Slack user ID, etc. */
   userId: string;
@@ -29,6 +30,9 @@ export interface Channel {
   /** Unique name for this channel (used in logging and DB) */
   name: string;
 
+  /** Channel capabilities — used by the system to adapt behavior per channel (optional for backwards compat) */
+  capabilities?: ChannelCapabilities;
+
   /**
    * Mount any required Express routes (e.g. webhook endpoints).
    * Called once during server startup.
@@ -41,4 +45,10 @@ export interface Channel {
    * @param message - Plain text reply (keep concise for SMS; can be Markdown for Slack)
    */
   send(userId: string, message: string): Promise<void>;
+
+  /**
+   * Send a streaming reply (optional — only for channels that support it).
+   * Falls back to buffering and calling send() if not implemented.
+   */
+  sendStream?(userId: string, stream: AsyncIterable<string>): Promise<void>;
 }

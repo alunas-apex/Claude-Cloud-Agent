@@ -1,0 +1,135 @@
+// ── Shared Types ──────────────────────────────────────────────────────────────
+// Duplicated from @claude-agent/shared for backend compilation compatibility.
+// Dashboard imports from @claude-agent/shared directly.
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+export interface UserRecord {
+  userId: string;
+  channel: string;
+  name?: string;
+  createdAt: number;
+}
+
+export interface AgentResponse {
+  text: string;
+  toolCallCount: number;
+}
+
+// ── v2 Types ──────────────────────────────────────────────────────────────────
+
+export type SessionStatus = 'active' | 'archived' | 'error';
+
+export interface Session {
+  id: string;
+  userId: string;
+  channel: string;
+  title?: string;
+  modelUsed?: string;
+  status: SessionStatus;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Message {
+  id: number;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system' | 'tool_call' | 'tool_result';
+  content: string;
+  metadata?: Record<string, unknown>;
+  timestamp: number;
+}
+
+export type ToolExecutionStatus = 'success' | 'error';
+
+export interface ToolExecution {
+  id: number;
+  sessionId: string;
+  messageId?: number;
+  toolName: string;
+  input?: Record<string, unknown>;
+  output?: string;
+  durationMs?: number;
+  status: ToolExecutionStatus;
+  error?: string;
+  timestamp: number;
+}
+
+export interface CostEntry {
+  id: number;
+  sessionId?: string;
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  timestamp: number;
+}
+
+export interface ChannelCapabilities {
+  maxMessageLength: number;
+  supportsMarkdown: boolean;
+  supportsStreaming: boolean;
+  supportsMedia: boolean;
+}
+
+export type ModelTier = 'haiku' | 'sonnet' | 'opus';
+
+export interface ModelConfig {
+  id: string;
+  tier: ModelTier;
+  maxTokens: number;
+  inputCostPer1k: number;
+  outputCostPer1k: number;
+}
+
+export const MODELS: Record<ModelTier, ModelConfig> = {
+  haiku: {
+    id: 'claude-haiku-4-5-20251001',
+    tier: 'haiku',
+    maxTokens: 4096,
+    inputCostPer1k: 0.001,
+    outputCostPer1k: 0.005,
+  },
+  sonnet: {
+    id: 'claude-sonnet-4-6',
+    tier: 'sonnet',
+    maxTokens: 8192,
+    inputCostPer1k: 0.003,
+    outputCostPer1k: 0.015,
+  },
+  opus: {
+    id: 'claude-opus-4-6',
+    tier: 'opus',
+    maxTokens: 8192,
+    inputCostPer1k: 0.015,
+    outputCostPer1k: 0.075,
+  },
+};
+
+export const DEFAULT_PORT = 3000;
+export const DEFAULT_HISTORY_LIMIT = 20;
+export const MAX_TOOL_ITERATIONS = 10;
+export const MAX_TOOL_RESULT_LENGTH = 2000;
+
+export interface PluginMeta {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  enabled: boolean;
+  config?: Record<string, unknown>;
+  installedAt: number;
+}
+
+export interface SettingEntry {
+  key: string;
+  value: string;
+  updatedAt: number;
+}

@@ -1,29 +1,26 @@
 {
   "name": "claude-cloud-agent",
-  "version": "1.0.0",
-  "description": "Always-running Claude AI personal assistant for Google Workspace, controlled via SMS and extensible messaging channels",
-  "main": "src/index.ts",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Claude Cloud Agent — Full autonomous AI command center with dashboard, multi-model routing, MCP, and Obsidian AI brain",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
-    "build": "tsc --noEmit",
-    "setup-google": "tsx scripts/setup-google-auth.ts"
-  },
-  "keywords": ["claude", "ai", "assistant", "google-workspace", "twilio", "sms"],
-  "license": "MIT",
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.36.3",
-    "better-sqlite3": "^9.6.0",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "googleapis": "^144.0.0",
-    "twilio": "^5.4.5"
+    "dev": "turbo dev",
+    "dev:backend": "turbo dev --filter=@claude-agent/backend",
+    "dev:dashboard": "turbo dev --filter=@claude-agent/dashboard",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "start": "npm run start --workspace=apps/backend",
+    "setup-google": "npm run setup-google --workspace=apps/backend"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.0.0",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
-  }
+    "turbo": "^2.3.0"
+  },
+  "keywords": ["claude", "ai", "agent", "autonomous", "mcp", "dashboard", "obsidian"],
+  "license": "MIT",
+  "packageManager": "npm@10.0.0"
 }

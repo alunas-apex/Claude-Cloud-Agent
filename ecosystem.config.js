@@ -12,7 +12,7 @@ module.exports = {
   apps: [
     {
       name: 'claude-agent',
-      script: 'src/index.ts',
+      script: 'apps/backend/src/index.ts',
       interpreter: 'tsx',
       cwd: __dirname,
       env_file: '.env',

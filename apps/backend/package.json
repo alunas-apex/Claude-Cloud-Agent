@@ -1,0 +1,41 @@
+{
+  "name": "@claude-agent/backend",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Claude Cloud Agent — Backend server with Express, Socket.IO, and agent orchestration",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "setup-google": "tsx scripts/setup-google-auth.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^9.6.0",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.36.0",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "socket.io": "^4.8.0",
+    "twilio": "^5.4.5",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@claude-agent/shared": "*",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "drizzle-kit": "^0.28.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.0.0"
+  }
+}
