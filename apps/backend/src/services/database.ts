@@ -335,4 +335,46 @@ export function getAllSettings() {
   return v2Stmts.getAllSettings.all() as { key: string; value: string; updatedAt: number }[];
 }
 
+// ── Plugin management ─────────────────────────────────────────────────────────
+
+const pluginStmts = {
+  getAll: db.prepare(`SELECT * FROM plugins ORDER BY installedAt DESC`),
+  get: db.prepare(`SELECT * FROM plugins WHERE id = ?`),
+  upsert: db.prepare(
+    `INSERT INTO plugins (id, name, version) VALUES (?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET version = excluded.version`
+  ),
+  setEnabled: db.prepare(`UPDATE plugins SET enabled = ? WHERE id = ?`),
+  remove: db.prepare(`DELETE FROM plugins WHERE id = ?`),
+  setConfig: db.prepare(`UPDATE plugins SET config = ? WHERE id = ?`),
+};
+
+export function getPluginRecords() {
+  return pluginStmts.getAll.all() as Array<{
+    id: string; name: string; version: string; enabled: number; config: string | null; installedAt: number;
+  }>;
+}
+
+export function getPluginRecord(id: string) {
+  return pluginStmts.get.get(id) as {
+    id: string; name: string; version: string; enabled: number; config: string | null; installedAt: number;
+  } | undefined;
+}
+
+export function upsertPlugin(id: string, name: string, version: string): void {
+  pluginStmts.upsert.run(id, name, version);
+}
+
+export function setPluginEnabled(id: string, enabled: boolean): void {
+  pluginStmts.setEnabled.run(enabled ? 1 : 0, id);
+}
+
+export function removePlugin(id: string): void {
+  pluginStmts.remove.run(id);
+}
+
+export function setPluginConfig(id: string, config: Record<string, unknown>): void {
+  pluginStmts.setConfig.run(JSON.stringify(config), id);
+}
+
 export { db as database };

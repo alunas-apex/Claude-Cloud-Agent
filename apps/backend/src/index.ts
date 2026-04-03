@@ -1,12 +1,6 @@
 import 'dotenv/config';
 import { createServer } from './server.js';
 
-// ── Channel Adapters ──────────────────────────────────────────────────────────
-import { TwilioChannel } from './channels/twilio/index.js';
-// import { TelegramChannel } from './channels/telegram/index.js';  // Uncomment to activate
-// import { SlackChannel }    from './channels/slack/index.js';     // Uncomment to activate
-// import { WhatsAppChannel } from './channels/whatsapp/index.js';  // Uncomment to activate
-
 // ── Tool Modules — Google Workspace ──────────────────────────────────────────
 import { AccountsToolModule } from './tools/google/accounts.js';
 import { GmailToolModule }    from './tools/google/gmail.js';
@@ -30,6 +24,13 @@ import { McpClientManager }  from './services/mcp-client.js';
 import { MemoryService }     from './services/memory.js';
 import { MemoryToolModule, setMemoryService } from './tools/memory/index.js';
 import { AgentTeam }         from './agents/team.js';
+import { PluginManager }     from './plugins/manager.js';
+import { ChannelManager }    from './services/channel-manager.js';
+
+// ── Built-in Plugins ─────────────────────────────────────────────────────────
+import { SystemInfoPlugin }  from './plugins/builtin/system-info.js';
+import { WebFetchPlugin }    from './plugins/builtin/web-fetch.js';
+import { JsonUtilsPlugin }   from './plugins/builtin/json-utils.js';
 
 // ── Validate required environment variables ───────────────────────────────────
 const required = ['ANTHROPIC_API_KEY'];
@@ -52,13 +53,9 @@ toolRegistry.register(AdminToolModule);
 // toolRegistry.register(ZoomToolModule);   // Uncomment to activate
 toolRegistry.register(MemoryToolModule);
 
-// ── Wire up channels ──────────────────────────────────────────────────────────
-const channels = [
-  TwilioChannel,
-  // TelegramChannel,  // Uncomment to activate
-  // SlackChannel,     // Uncomment to activate
-  // WhatsAppChannel,  // Uncomment to activate
-];
+// ── Wire up channels (auto-detect from env vars) ─────────────────────────────
+const channelManager = new ChannelManager();
+const channels = channelManager.detectChannels();
 
 // ── Wire up agent & router ────────────────────────────────────────────────────
 const modelRouter = new ModelRouter();
@@ -77,9 +74,15 @@ setMemoryService(memory);
 // ── Wire up Agent Team ────────────────────────────────────────────────────────
 const agentTeam = new AgentTeam(toolRegistry, costTracker);
 
+// ── Wire up Plugin System ─────────────────────────────────────────────────────
+const pluginManager = new PluginManager(toolRegistry);
+pluginManager.register(SystemInfoPlugin);
+pluginManager.register(WebFetchPlugin);
+pluginManager.register(JsonUtilsPlugin);
+
 // ── Start server ──────────────────────────────────────────────────────────────
-const { httpServer } = createServer({
-  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory, agentTeam,
+const { httpServer, app } = createServer({
+  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory, agentTeam, pluginManager, channelManager,
 });
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
@@ -90,8 +93,18 @@ httpServer.listen(port, async () => {
   console.log(`  MCP SSE:   http://localhost:${port}/mcp/sse`);
   console.log(`  WebSocket: ws://localhost:${port}/ws`);
   console.log(`  Dashboard: http://localhost:3001 (run 'npm run dev:dashboard')`);
-  console.log(`  Channels:  ${channels.map((c) => c.name).join(', ')}`);
+  console.log(`  Channels:  ${channels.map((c) => c.name).join(', ') || 'none (no channel env vars configured)'}`);
   console.log(`  Tools:     ${toolRegistry.getTools().length} tools registered`);
+
+  // Initialize plugins
+  try {
+    await pluginManager.initialize(app);
+    const plugins = pluginManager.getPlugins();
+    const activeCount = plugins.filter((p) => p.active).length;
+    console.log(`  Plugins:   ${plugins.length} registered, ${activeCount} active`);
+  } catch (err: any) {
+    console.warn(`  Plugins:   Initialization error: ${err.message}`);
+  }
 
   // Initialize MCP client connections (connect to external servers)
   try {
@@ -113,12 +126,20 @@ httpServer.listen(port, async () => {
     console.warn(`  Memory:    Initialization error: ${err.message}`);
   }
 
+  // Log channel detection results
+  const statuses = channelManager.getStatuses();
+  const inactive = statuses.filter((s) => !s.enabled);
+  if (inactive.length > 0) {
+    console.log(`  Inactive:  ${inactive.map((s) => `${s.name} (missing: ${s.missingEnvVars.join(', ')})`).join('; ')}`);
+  }
+
   console.log('\n  Ready to receive messages.\n');
 });
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {
   console.log(`[Shutdown] ${signal} received, shutting down gracefully...`);
+  await pluginManager.closeAll();
   await memory.close();
   await mcpClient.closeAll();
   await mcpServer.close();

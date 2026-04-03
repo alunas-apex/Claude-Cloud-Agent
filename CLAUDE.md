@@ -8,7 +8,7 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
 
 ## What It Does
 
-### Current (v4.0 — Phase 4 MCP Integration)
+### Current (v5.0 — All Phases Complete)
 - **SMS Agent**: Text your Twilio number in plain English for Gmail, Calendar, GCP, and Admin tasks
 - **Live Dashboard**: Real-time command center at `localhost:3001` wired to backend via REST API + WebSocket
   - Dashboard home with live stats, model usage breakdown, budget status, health indicators, activity feed
@@ -57,9 +57,19 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
   - Dashboard page with agent status, task runner, and execution history
   - REST API: list agents, run tasks, get task history
 
-### Planned (Phase 7)
-- **Plugin System**: Hot-loadable plugins with marketplace
-- **More Channels**: Telegram, Slack, WhatsApp, Discord, Email (stubs ready to activate)
+- **Plugin System**: Hot-loadable plugin manager with enable/disable/marketplace
+  - PluginManager service for registering, activating, and deactivating plugins
+  - Built-in plugins: System Info (diagnostics), Web Fetch (HTTP), JSON Utils (transform)
+  - Plugin DB persistence (enabled state persists across restarts)
+  - Marketplace catalog with curated plugin recommendations
+  - Dashboard plugins page with install/enable/disable UI and marketplace browser
+  - Plugin API: list, enable, disable, get, marketplace
+
+- **Channel Auto-Detection**: Channels activate automatically based on configured env vars
+  - ChannelManager auto-detects Twilio SMS, Telegram, Slack, WhatsApp from env vars
+  - No more commenting/uncommenting channels in index.ts
+  - Dashboard shows channel status with missing env var details
+  - Channel API: list all channels with their configuration status
 
 ---
 
@@ -144,12 +154,12 @@ claude-cloud-agent/
 │   │   │   │
 │   │   │   ├── mcp-stdio.ts          ✅ Standalone MCP stdio entry point for Claude Desktop/Code
 │   │   │   │
-│   │   │   ├── channels/              Messaging channel adapters
+│   │   │   ├── channels/              Messaging channel adapters (auto-detected)
 │   │   │   │   ├── base.ts            Channel interface + ChannelCapabilities
-│   │   │   │   ├── twilio/            ✅ Active — SMS via Twilio
-│   │   │   │   ├── telegram/          🔧 Stub — ready to activate
-│   │   │   │   ├── slack/             🔧 Stub — ready to activate
-│   │   │   │   └── whatsapp/          🔧 Stub — ready to activate
+│   │   │   │   ├── twilio/            ✅ SMS via Twilio (auto-activates with TWILIO_* env vars)
+│   │   │   │   ├── telegram/          ✅ Telegram bot (auto-activates with TELEGRAM_BOT_TOKEN)
+│   │   │   │   ├── slack/             ✅ Slack bot (auto-activates with SLACK_BOT_TOKEN)
+│   │   │   │   └── whatsapp/          ✅ WhatsApp via Twilio (auto-activates with TWILIO_WHATSAPP_NUMBER)
 │   │   │   │
 │   │   │   ├── tools/                 Tool connector modules
 │   │   │   │   ├── base.ts            ToolModule interface + ToolContext
@@ -167,14 +177,23 @@ claude-cloud-agent/
 │   │   │   │   │   └── datetime.ts    ✅ Current date/time
 │   │   │   │   └── zoom/              🔧 Stub
 │   │   │   │
+│   │   │   ├── plugins/               Plugin system
+│   │   │   │   ├── types.ts           ✅ Plugin, PluginContext, PluginInfo interfaces
+│   │   │   │   ├── manager.ts         ✅ PluginManager — register, enable, disable, marketplace
+│   │   │   │   └── builtin/           Built-in plugins
+│   │   │   │       ├── system-info.ts ✅ System diagnostics (CPU, memory, health)
+│   │   │   │       ├── web-fetch.ts   ✅ HTTP fetch for web pages and JSON APIs
+│   │   │   │       └── json-utils.ts  ✅ JSON format, query, transform tools
+│   │   │   │
 │   │   │   ├── services/
-│   │   │   │   ├── database.ts        SQLite — v1 (conversations) + v2 (sessions, cost, tools)
+│   │   │   │   ├── database.ts        SQLite — v1 (conversations) + v2 (sessions, cost, tools, plugins)
 │   │   │   │   ├── message-router.ts  Channel-agnostic message handler
 │   │   │   │   ├── event-bus.ts       ✅ Central event system
 │   │   │   │   ├── websocket.ts       ✅ Socket.IO manager
 │   │   │   │   ├── mcp-server.ts      ✅ Built-in MCP server (SSE + stdio transports)
 │   │   │   │   ├── mcp-client.ts      ✅ MCP client manager (connect to external servers)
-│   │   │   │   └── memory.ts         ✅ ChromaDB + Obsidian vault memory service
+│   │   │   │   ├── memory.ts          ✅ ChromaDB + Obsidian vault memory service
+│   │   │   │   └── channel-manager.ts ✅ Auto-detect channels from env vars
 │   │   │   │
 │   │   │   └── types/
 │   │   │       └── index.ts           Re-exports from @claude-agent/shared
@@ -191,7 +210,7 @@ claude-cloud-agent/
 │           │   ├── tools/page.tsx     ✅ Tool registry + live execution log
 │           │   ├── memory/page.tsx    ✅ Memory search, store, vault status
 │           │   ├── mcp/page.tsx       ✅ MCP server management + marketplace
-│           │   ├── plugins/page.tsx   🔧 Plugin marketplace (placeholder)
+│           │   ├── plugins/page.tsx   ✅ Plugin management + channels + marketplace
 │           │   └── settings/page.tsx  ✅ Editable model config, budgets, API keys, channels
 │           ├── components/
 │           │   └── Sidebar.tsx        ✅ Active nav sidebar with route highlighting
@@ -318,12 +337,18 @@ export const MyToolModule: ToolModule = {
 | `/api/memory` | POST | Store a new memory (body: content, title, tags) |
 | `/mcp/sse` | GET | MCP SSE transport endpoint (for Claude Desktop) |
 | `/mcp/messages` | POST | MCP SSE message endpoint |
+| `/api/plugins` | GET | List all registered plugins |
+| `/api/plugins/marketplace` | GET | Browse plugin marketplace catalog |
+| `/api/plugins/:id` | GET | Get specific plugin info |
+| `/api/plugins/:id/enable` | PUT | Enable and activate a plugin |
+| `/api/plugins/:id/disable` | PUT | Disable and deactivate a plugin |
+| `/api/channels` | GET | List all channels with configuration status |
 | `/api/settings` | GET | Get all settings |
 | `/api/settings` | PUT | Update a setting |
 | `/webhook/sms` | POST | Twilio SMS webhook |
-| `/webhook/telegram` | POST | Telegram webhook (stub) |
-| `/webhook/slack` | POST | Slack webhook (stub) |
-| `/webhook/whatsapp` | POST | WhatsApp webhook (stub) |
+| `/webhook/telegram` | POST | Telegram webhook (auto-activated with env vars) |
+| `/webhook/slack` | POST | Slack webhook (auto-activated with env vars) |
+| `/webhook/whatsapp` | POST | WhatsApp webhook (auto-activated with env vars) |
 
 **WebSocket**: Connect to `ws://localhost:3000/ws` for real-time events:
 - `tool:start` / `tool:complete` — Tool execution updates
@@ -402,4 +427,4 @@ npm run setup-google  # Google OAuth setup
 | 4 | MCP Integration | **COMPLETE** | Built-in MCP server, external MCP client, Claude Desktop/Code connectivity, dashboard management |
 | 5 | Obsidian AI Brain | **COMPLETE** | ChromaDB vector memory, Obsidian vault sync, memory tools, dashboard |
 | 6 | Agent Teams | **COMPLETE** | Coordinator, Researcher, Coder, Planner, Executor agents with delegation |
-| 7 | Plugins & Channels | PENDING | Plugin system, activate Telegram/Slack/WhatsApp/Discord |
+| 7 | Plugins & Channels | **COMPLETE** | Plugin manager, built-in plugins, channel auto-detection, marketplace, dashboard |

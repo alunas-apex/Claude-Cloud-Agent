@@ -9,6 +9,8 @@ import { McpServerManager } from './services/mcp-server.js';
 import { McpClientManager } from './services/mcp-client.js';
 import { MemoryService } from './services/memory.js';
 import { AgentTeam } from './agents/team.js';
+import { PluginManager } from './plugins/manager.js';
+import { ChannelManager } from './services/channel-manager.js';
 import { initWebSocket } from './services/websocket.js';
 
 interface ServerDeps {
@@ -21,10 +23,12 @@ interface ServerDeps {
   mcpClient?: McpClientManager;
   memory?: MemoryService;
   agentTeam?: AgentTeam;
+  pluginManager?: PluginManager;
+  channelManager?: ChannelManager;
 }
 
 export function createServer(deps: ServerDeps): { app: express.Express; httpServer: http.Server } {
-  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory, agentTeam } = deps;
+  const { channels, router, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory, agentTeam, pluginManager, channelManager } = deps;
   const app = express();
   const httpServer = http.createServer(app);
 
@@ -201,6 +205,55 @@ export function createServer(deps: ServerDeps): { app: express.Express; httpServ
     if (!content) { res.status(400).json({ error: 'content required' }); return; }
     const id = await memory.store({ content, title, tags, source: source || 'agent' });
     res.json({ ok: true, id });
+  });
+
+  // ── Plugin API (Phase 7) ─────────────────────────────────────────────────
+
+  app.get('/api/plugins', (_req, res) => {
+    if (!pluginManager) { res.json([]); return; }
+    res.json(pluginManager.getPlugins());
+  });
+
+  app.get('/api/plugins/marketplace', (_req, res) => {
+    if (!pluginManager) { res.json([]); return; }
+    res.json(pluginManager.getMarketplace());
+  });
+
+  app.get('/api/plugins/:id', (req, res) => {
+    if (!pluginManager) { res.status(404).json({ error: 'Plugin manager not initialized' }); return; }
+    const plugin = pluginManager.getPlugin(req.params.id);
+    if (!plugin) { res.status(404).json({ error: 'Plugin not found' }); return; }
+    res.json(plugin);
+  });
+
+  app.put('/api/plugins/:id/enable', async (req, res) => {
+    if (!pluginManager) { res.status(503).json({ error: 'Plugin manager not initialized' }); return; }
+    try {
+      await pluginManager.enable(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/plugins/:id/disable', async (req, res) => {
+    if (!pluginManager) { res.status(503).json({ error: 'Plugin manager not initialized' }); return; }
+    try {
+      await pluginManager.disable(req.params.id);
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ── Channel API (Phase 7) ──────────────────────────────────────────────
+
+  app.get('/api/channels', (_req, res) => {
+    if (!channelManager) {
+      res.json(channels.map((c) => ({ name: c.name, enabled: true, configured: true, missingEnvVars: [] })));
+      return;
+    }
+    res.json(channelManager.getStatuses());
   });
 
   // ── MCP API (Phase 4) ───────────────────────────────────────────────────
