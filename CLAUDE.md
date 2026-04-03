@@ -1,22 +1,34 @@
-# Claude Cloud Agent
+# Claude Cloud Agent — Autonomous AI Command Center
 
-An always-running personal assistant powered by Claude AI. Controlled via SMS (Twilio) with full access to Google Workspace. Designed to be easily extended with new messaging channels and tool integrations.
+A full autonomous AI agent command center powered by Claude AI. Features a web dashboard, multi-model intelligence routing, MCP server integration, Obsidian.md AI brain, agent teams, and connectivity to all Claude platforms.
+
+**Architecture**: Turborepo monorepo with Express + Socket.IO backend, Next.js dashboard, and shared type package.
 
 ---
 
 ## What It Does
 
-Text your Twilio number in plain English and the agent will:
-- **Email**: Read, search, compose, send, and reply to Gmail
-- **Calendar**: List, create, update, and delete Google Calendar events (with Google Meet links)
-- **More**: Extensible — Drive, Zoom, Slack, Telegram, WhatsApp stubs are ready to activate
+### Current (v2.0 — Phase 1 Foundation)
+- **SMS Agent**: Text your Twilio number in plain English for Gmail, Calendar, GCP, and Admin tasks
+- **Web Dashboard**: Real-time command center UI at `localhost:3001` with session, tool, and settings management
+- **WebSocket**: Real-time event streaming between backend and dashboard via Socket.IO
+- **Enhanced Database**: Sessions, messages, tool executions, cost ledger, settings, and plugin registry
+- **API**: REST endpoints for sessions, tools, costs, and settings at `/api/*`
+
+### Planned (Phases 2-7)
+- **Multi-Model Routing**: Auto-route to Haiku/Sonnet/Opus based on task complexity
+- **MCP Integration**: Expose tools to Claude Desktop/Code; connect to external MCP servers
+- **Obsidian AI Brain**: Persistent vector memory with bidirectional Obsidian vault sync
+- **Agent Teams**: Coordinator, Researcher, Coder, Planner, Executor agents that collaborate
+- **Plugin System**: Hot-loadable plugins with marketplace
+- **More Channels**: Telegram, Slack, WhatsApp, Discord, Email (stubs ready to activate)
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 20+
 - A Google Cloud project with Gmail API + Calendar API enabled
 - A Twilio account with an SMS-capable phone number
 - An Anthropic API key
@@ -25,7 +37,6 @@ Text your Twilio number in plain English and the agent will:
 
 ```bash
 npm install
-npm install -g tsx pm2
 ```
 
 ### 2. Configure Environment
@@ -37,7 +48,7 @@ cp .env.example .env
 
 Required values:
 - `ANTHROPIC_API_KEY` — from [console.anthropic.com](https://console.anthropic.com)
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — from Google Cloud Console (see below)
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — from Google Cloud Console
 - `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_PHONE_NUMBER` — from Twilio Console
 
 ### 3. Authorise Google Access (one-time)
@@ -46,92 +57,106 @@ Required values:
 npm run setup-google
 ```
 
-This opens a browser URL, you sign in, paste the code back. Tokens are saved to `data/google-tokens.json` (gitignored).
+### 4. Start Development
 
-**Google Cloud setup steps:**
-1. Go to [console.cloud.google.com](https://console.cloud.google.com)
-2. Create a project → Enable **Gmail API** and **Google Calendar API**
-3. Go to **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
-4. Application type: **Desktop app**
-5. Copy the Client ID and Secret to `.env`
-
-### 4. Configure Twilio Webhook
-
-In your [Twilio Console](https://console.twilio.com):
-1. Go to **Phone Numbers → Manage → Active Numbers**
-2. Click your number → Under "Messaging", set:
-   - Webhook URL: `https://<your-domain>/webhook/sms`
-   - HTTP Method: `HTTP POST`
-
-> **Local development**: Use [ngrok](https://ngrok.com) to expose localhost:
-> ```bash
-> ngrok http 3000
-> # Use the https URL as your Twilio webhook
-> ```
-
-### 5. Start the Agent
-
-**Development (with auto-reload):**
 ```bash
+# Start backend only (SMS + API + WebSocket)
+npm run dev:backend
+
+# Start dashboard only
+npm run dev:dashboard
+
+# Start everything (Turborepo)
 npm run dev
 ```
 
-**Production (always-running with PM2):**
+### 5. Docker Compose (Production)
+
 ```bash
-pm2 start ecosystem.config.js
-pm2 save        # Persist across reboots
-pm2 startup     # Enable auto-start on boot
+docker compose up -d
 ```
 
-**Useful PM2 commands:**
-```bash
-pm2 logs claude-agent     # Live logs
-pm2 restart claude-agent  # Restart
-pm2 stop claude-agent     # Stop
-pm2 status                # View status
-```
+Services:
+- **Backend**: `http://localhost:3000` (API + WebSocket + SMS webhooks)
+- **Dashboard**: `http://localhost:3001` (Next.js UI)
+- **Redis**: `localhost:6379` (for agent teams job queue)
 
 ---
 
 ## Project Structure
 
 ```
-src/
-├── index.ts                    Entry point — register channels & tools here
-├── server.ts                   Express app factory
+claude-cloud-agent/
+├── apps/
+│   ├── backend/                        Express + Socket.IO server
+│   │   ├── src/
+│   │   │   ├── index.ts               Entry point — register channels & tools
+│   │   │   ├── server.ts              Express + Socket.IO + API routes
+│   │   │   │
+│   │   │   ├── agent/                 Core agent logic
+│   │   │   │   ├── assistant.ts       Claude agentic loop (tool use)
+│   │   │   │   └── tool-registry.ts   Aggregates all ToolModules
+│   │   │   │
+│   │   │   ├── channels/              Messaging channel adapters
+│   │   │   │   ├── base.ts            Channel interface + ChannelCapabilities
+│   │   │   │   ├── twilio/            ✅ Active — SMS via Twilio
+│   │   │   │   ├── telegram/          🔧 Stub — ready to activate
+│   │   │   │   ├── slack/             🔧 Stub — ready to activate
+│   │   │   │   └── whatsapp/          🔧 Stub — ready to activate
+│   │   │   │
+│   │   │   ├── tools/                 Tool connector modules
+│   │   │   │   ├── base.ts            ToolModule interface + ToolContext
+│   │   │   │   ├── google/
+│   │   │   │   │   ├── auth.ts        Shared Google OAuth2 (multi-account)
+│   │   │   │   │   ├── accounts.ts    Account management tools
+│   │   │   │   │   ├── gmail.ts       ✅ Gmail read/write/send
+│   │   │   │   │   ├── calendar.ts    ✅ Calendar CRUD + Meet
+│   │   │   │   │   ├── cloud.ts       ✅ GCP (16 tools)
+│   │   │   │   │   ├── admin.ts       ✅ Workspace Admin (13 tools)
+│   │   │   │   │   └── drive.ts       🔧 Stub
+│   │   │   │   ├── utility/
+│   │   │   │   │   └── datetime.ts    ✅ Current date/time
+│   │   │   │   └── zoom/              🔧 Stub
+│   │   │   │
+│   │   │   ├── services/
+│   │   │   │   ├── database.ts        SQLite — v1 (conversations) + v2 (sessions, cost, tools)
+│   │   │   │   ├── message-router.ts  Channel-agnostic message handler
+│   │   │   │   ├── event-bus.ts       ✅ Central event system
+│   │   │   │   └── websocket.ts       ✅ Socket.IO manager
+│   │   │   │
+│   │   │   └── types/
+│   │   │       └── index.ts           Re-exports from @claude-agent/shared
+│   │   │
+│   │   └── scripts/
+│   │       └── setup-google-auth.ts   Google OAuth setup
+│   │
+│   └── dashboard/                      Next.js command center UI
+│       └── src/app/
+│           ├── page.tsx               Dashboard home (stats + health)
+│           ├── sessions/              Session management
+│           ├── agents/                Agent team configuration
+│           ├── tools/                 Tool registry + execution log
+│           ├── memory/                Obsidian vault + vector search
+│           ├── mcp/                   MCP server management
+│           ├── plugins/               Plugin marketplace
+│           └── settings/              Model config, budgets, API keys, channels
 │
-├── channels/                   Messaging channel adapters
-│   ├── base.ts                 Channel interface (IncomingMessage, Channel)
-│   ├── twilio/                 ✅ Active — SMS via Twilio
-│   ├── telegram/               🔧 Stub — ready to activate
-│   ├── slack/                  🔧 Stub — ready to activate
-│   └── whatsapp/               🔧 Stub — ready to activate
+├── packages/
+│   └── shared/                         Shared types + constants
+│       └── src/index.ts               Session, Message, Cost, Model types
 │
-├── tools/                      Tool connector modules
-│   ├── base.ts                 ToolModule interface
-│   ├── google/
-│   │   ├── auth.ts             Shared Google OAuth2 client
-│   │   ├── gmail.ts            ✅ Active — Gmail read/write/send
-│   │   ├── calendar.ts         ✅ Active — Calendar CRUD + Meet
-│   │   └── drive.ts            🔧 Stub — ready to activate
-│   ├── zoom/                   🔧 Stub — ready to activate
-│   └── utility/
-│       └── datetime.ts         ✅ Active — current date/time
-│
-├── agent/
-│   ├── assistant.ts            Claude agentic loop (tool use)
-│   └── tool-registry.ts        Aggregates all ToolModules
-│
-└── services/
-    ├── database.ts             SQLite conversation history
-    └── message-router.ts       Channel-agnostic message handler
+├── turbo.json                          Turborepo config
+├── docker-compose.yml                  Full stack deployment
+├── ecosystem.config.js                 PM2 config
+├── .env.example                        Environment variables template
+└── CLAUDE.md                           This file
 ```
 
 ---
 
 ## How to Add a New Messaging Channel
 
-1. Create `src/channels/<platform>/index.ts` implementing the `Channel` interface:
+1. Create `apps/backend/src/channels/<platform>/index.ts` implementing the `Channel` interface:
 
 ```typescript
 import { Channel, IncomingMessage } from '../base.js';
@@ -139,6 +164,12 @@ import { Express } from 'express';
 
 export const MyChannel: Channel = {
   name: 'myplatform',
+  capabilities: {  // Optional — enhances system behavior
+    maxMessageLength: 4000,
+    supportsMarkdown: true,
+    supportsStreaming: false,
+    supportsMedia: false,
+  },
 
   register(app: Express, onMessage: (msg: IncomingMessage) => Promise<string>): void {
     app.post('/webhook/myplatform', async (req, res) => {
@@ -159,21 +190,21 @@ export const MyChannel: Channel = {
 };
 ```
 
-2. Add any required env vars to `.env.example` and `.env`
-3. In `src/index.ts`, import and add to the `channels` array
-4. Done — MessageRouter handles the rest automatically
+2. Add env vars to `.env.example`
+3. In `apps/backend/src/index.ts`, import and add to `channels` array
 
 ---
 
 ## How to Add a New Tool Connector
 
-1. Create `src/tools/<service>/index.ts` implementing the `ToolModule` interface:
+1. Create `apps/backend/src/tools/<service>/index.ts` implementing the `ToolModule` interface:
 
 ```typescript
 import { ToolModule } from '../base.js';
 
 export const MyToolModule: ToolModule = {
   name: 'MyService',
+  category: 'utility',  // Optional: 'google' | 'utility' | 'mcp' | 'plugin' | 'system'
   tools: [
     {
       name: 'do_something',
@@ -186,56 +217,72 @@ export const MyToolModule: ToolModule = {
     },
   ],
   handlers: {
-    async do_something(input) {
-      // Call your service API
+    async do_something(input, context?) {
+      // context?.emit('tool:progress', { step: 1 }) — optional real-time updates
       return `Done: ${input.param}`;
     },
   },
 };
 ```
 
-2. Add any required env vars to `.env.example` and `.env`
-3. In `src/index.ts`, import and register:
-   ```typescript
-   import { MyToolModule } from './tools/myservice/index.js';
-   toolRegistry.register(MyToolModule);
-   ```
-4. Done — Claude will automatically use the new tool when relevant
+2. In `apps/backend/src/index.ts`, register: `toolRegistry.register(MyToolModule);`
 
 ---
 
-## Built-in Commands
+## API Endpoints
 
-Send these via SMS to control the agent:
-- `/clear` or `clear history` — Clear conversation history and start fresh
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Health check + version + uptime |
+| `/api/sessions` | GET | List all sessions (paginated) |
+| `/api/sessions/:id` | GET | Get session with messages |
+| `/api/tools/executions` | GET | Tool execution log (paginated) |
+| `/api/cost/today` | GET | Today's total cost |
+| `/api/settings` | GET | Get all settings |
+| `/api/settings` | PUT | Update a setting |
+| `/webhook/sms` | POST | Twilio SMS webhook |
+| `/webhook/telegram` | POST | Telegram webhook (stub) |
+| `/webhook/slack` | POST | Slack webhook (stub) |
+| `/webhook/whatsapp` | POST | WhatsApp webhook (stub) |
+
+**WebSocket**: Connect to `ws://localhost:3000/ws` for real-time events:
+- `tool:start` / `tool:complete` — Tool execution updates
+- `message:chunk` / `message:complete` — Streaming responses
+- `cost:update` — Cost tracking updates
+- `session:created` / `session:updated` — Session lifecycle
 
 ---
 
 ## Development
 
 ```bash
-npm run dev       # Start with hot-reload (tsx watch)
-npm run build     # TypeScript type check (tsc --noEmit)
-npm run setup-google  # Re-run Google OAuth setup
+npm run dev           # Start all (Turborepo)
+npm run dev:backend   # Backend only (hot-reload)
+npm run dev:dashboard # Dashboard only (Next.js dev)
+npm run build         # Build all packages
+npm run typecheck     # Type check all packages
+npm run test          # Run all tests
+npm run setup-google  # Google OAuth setup
 ```
-
-**Health check:** `GET http://localhost:3000/health`
 
 ---
 
 ## Architecture Notes
 
-- **Conversation history** is stored in `data/agent.db` (SQLite) — last 20 messages per user
-- **Google tokens** are stored in `data/google-tokens.json` — auto-refreshed on expiry
-- **SMS length**: Twilio messages over 1,550 chars are automatically split and sent sequentially
-- **Agentic loop**: Claude can call up to 10 tools per message before returning a response
-- The `data/` directory is gitignored — never commit tokens or the database
+- **Monorepo**: Turborepo manages `apps/backend`, `apps/dashboard`, `packages/shared`
+- **Database**: SQLite with v1 tables (backwards compat for SMS) + v2 tables (sessions, cost, tools)
+- **Events**: EventBus decouples components; Socket.IO forwards events to dashboard
+- **Channels**: Twilio SMS active; Telegram, Slack, WhatsApp ready to activate
+- **Tools**: 39+ tools across Gmail, Calendar, GCP, Admin, datetime; extensible via ToolModule interface
+- **Token optimization**: Planned selective tool inclusion, conversation summarization, model routing
+- **Data directory**: `data/` is gitignored — contains SQLite DB, Google tokens, Obsidian vault
 
 ---
 
 ## Security
 
-- Twilio webhook signatures are validated on every request
-- Google OAuth tokens are stored locally (not in env vars)
-- No user data is sent to third parties beyond the configured services
-- The `ANTHROPIC_API_KEY` is the only secret sent externally for AI processing
+- Twilio webhook signatures validated on every SMS request
+- Google OAuth tokens stored locally (auto-refreshed on expiry)
+- No user data sent to third parties beyond configured services
+- Dashboard API has CORS configured for localhost
+- API keys stored encrypted in database (when using settings UI)

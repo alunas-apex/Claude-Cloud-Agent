@@ -57,24 +57,29 @@ const assistant = new Assistant(toolRegistry);
 const messageRouter = new MessageRouter(assistant);
 
 // ── Start server ──────────────────────────────────────────────────────────────
-const app = createServer(channels, messageRouter);
+const { httpServer } = createServer(channels, messageRouter);
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
-app.listen(port, () => {
-  console.log(`\n[Claude Cloud Agent] Running on port ${port}`);
-  console.log(`  Health: http://localhost:${port}/health`);
-  console.log(`  Channels: ${channels.map((c) => c.name).join(', ')}`);
-  console.log(`  Tools: Accounts, Gmail, Calendar, GCP (16 tools), Admin (13 tools), Datetime`);
+httpServer.listen(port, () => {
+  console.log(`\n[Claude Cloud Agent v2.0] Running on port ${port}`);
+  console.log(`  Health:    http://localhost:${port}/health`);
+  console.log(`  API:       http://localhost:${port}/api/`);
+  console.log(`  WebSocket: ws://localhost:${port}/ws`);
+  console.log(`  Dashboard: http://localhost:3001 (run 'npm run dev:dashboard')`);
+  console.log(`  Channels:  ${channels.map((c) => c.name).join(', ')}`);
+  console.log(`  Tools:     ${toolRegistry.getTools().length} tools registered`);
   console.log('\n  Ready to receive messages.\n');
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('[Shutdown] SIGTERM received, shutting down gracefully...');
+  httpServer.close();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('[Shutdown] SIGINT received, shutting down gracefully...');
+  httpServer.close();
   process.exit(0);
 });
