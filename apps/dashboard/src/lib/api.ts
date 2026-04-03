@@ -60,6 +60,16 @@ export const api = {
     toggleServer: (id: string, enabled: boolean) =>
       fetchAPI<{ ok: boolean }>(`/api/mcp/servers/${id}/toggle`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
   },
+  plugins: {
+    list: () => fetchAPI<Array<{ id: string; name: string; version: string; description?: string; author?: string; category?: string; enabled: boolean; active: boolean; toolCount: number; channelCount: number }>>('/api/plugins'),
+    get: (id: string) => fetchAPI<any>(`/api/plugins/${id}`),
+    marketplace: () => fetchAPI<Array<{ id: string; name: string; description: string; category: string; installed: boolean }>>('/api/plugins/marketplace'),
+    enable: (id: string) => fetchAPI<{ ok: boolean }>(`/api/plugins/${id}/enable`, { method: 'PUT' }),
+    disable: (id: string) => fetchAPI<{ ok: boolean }>(`/api/plugins/${id}/disable`, { method: 'PUT' }),
+  },
+  channels: {
+    list: () => fetchAPI<Array<{ name: string; enabled: boolean; configured: boolean; missingEnvVars: string[] }>>('/api/channels'),
+  },
   settings: {
     getAll: () => fetchAPI<any[]>('/api/settings'),
     update: (key: string, value: string) => fetchAPI<{ ok: boolean }>('/api/settings', {

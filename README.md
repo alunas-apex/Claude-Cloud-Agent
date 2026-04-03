@@ -397,8 +397,8 @@ export const MyChannel: Channel = {
 <tr>
 <td align="center">7</td>
 <td>Plugins & Channels</td>
-<td align="center">&#9744;</td>
-<td>Plugin system, activate Telegram/Slack/WhatsApp/Discord</td>
+<td align="center">&#9989;</td>
+<td>Plugin manager, built-in plugins, channel auto-detection, marketplace</td>
 </tr>
 </table>
 
