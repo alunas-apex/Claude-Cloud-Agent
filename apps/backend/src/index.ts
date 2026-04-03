@@ -27,6 +27,8 @@ import { CostTracker }       from './agent/cost-tracker.js';
 import { MessageRouter }     from './services/message-router.js';
 import { McpServerManager }  from './services/mcp-server.js';
 import { McpClientManager }  from './services/mcp-client.js';
+import { MemoryService }     from './services/memory.js';
+import { MemoryToolModule, setMemoryService } from './tools/memory/index.js';
 
 // ── Validate required environment variables ───────────────────────────────────
 const required = ['ANTHROPIC_API_KEY'];
@@ -47,6 +49,7 @@ toolRegistry.register(GcpToolModule);
 toolRegistry.register(AdminToolModule);
 // toolRegistry.register(DriveToolModule);  // Uncomment to activate
 // toolRegistry.register(ZoomToolModule);   // Uncomment to activate
+toolRegistry.register(MemoryToolModule);
 
 // ── Wire up channels ──────────────────────────────────────────────────────────
 const channels = [
@@ -66,9 +69,13 @@ const messageRouter = new MessageRouter(assistant);
 const mcpServer = new McpServerManager(toolRegistry);
 const mcpClient = new McpClientManager(toolRegistry);
 
+// ── Wire up Memory ────────────────────────────────────────────────────────────
+const memory = new MemoryService();
+setMemoryService(memory);
+
 // ── Start server ──────────────────────────────────────────────────────────────
 const { httpServer } = createServer({
-  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient,
+  channels, router: messageRouter, toolRegistry, costTracker, modelRouter, mcpServer, mcpClient, memory,
 });
 const port = parseInt(process.env.PORT ?? '3000', 10);
 
@@ -93,12 +100,22 @@ httpServer.listen(port, async () => {
     console.warn(`  MCP:       External server initialization error: ${err.message}`);
   }
 
+  // Initialize memory service (Obsidian vault + ChromaDB)
+  try {
+    await memory.initialize();
+    const status = memory.getStatus();
+    console.log(`  Memory:    ${status.noteCount} vault notes, ${status.indexedCount} indexed`);
+  } catch (err: any) {
+    console.warn(`  Memory:    Initialization error: ${err.message}`);
+  }
+
   console.log('\n  Ready to receive messages.\n');
 });
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {
   console.log(`[Shutdown] ${signal} received, shutting down gracefully...`);
+  await memory.close();
   await mcpClient.closeAll();
   await mcpServer.close();
   httpServer.close();
