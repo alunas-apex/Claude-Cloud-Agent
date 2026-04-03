@@ -3,12 +3,16 @@ import http from 'http';
 import { Channel } from './channels/base.js';
 import { MessageRouter } from './services/message-router.js';
 import { ToolRegistry } from './agent/tool-registry.js';
+import { CostTracker } from './agent/cost-tracker.js';
+import { ModelRouter } from './agent/model-router.js';
 import { initWebSocket } from './services/websocket.js';
 
 export function createServer(
   channels: Channel[],
   router: MessageRouter,
-  toolRegistry?: ToolRegistry
+  toolRegistry?: ToolRegistry,
+  costTracker?: CostTracker,
+  modelRouter?: ModelRouter
 ): { app: express.Express; httpServer: http.Server } {
   const app = express();
   const httpServer = http.createServer(app);
@@ -36,7 +40,7 @@ export function createServer(
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
-      version: '2.0.0',
+      version: '3.0.0',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       channels: channels.map((c) => c.name),
@@ -96,6 +100,33 @@ export function createServer(
     if (!key || value === undefined) { res.status(400).json({ error: 'key and value required' }); return; }
     setSetting(key, String(value));
     res.json({ ok: true });
+  });
+
+  // ── Cost & Budget API (Phase 3) ─────────────────────────────────────────
+
+  app.get('/api/cost/breakdown', (_req, res) => {
+    if (!costTracker) { res.json({ byModel: {}, total: { tokensIn: 0, tokensOut: 0, costUsd: 0, requests: 0 } }); return; }
+    res.json(costTracker.getCostBreakdown());
+  });
+
+  app.get('/api/budget', (_req, res) => {
+    if (!costTracker) { res.json({ dailyBudgetUsd: 10, dailySpentUsd: 0, dailyRemainingUsd: 10, sessionBudgetUsd: 2, sessionSpentUsd: 0, sessionRemainingUsd: 2, isOverBudget: false, autoDowngrade: true }); return; }
+    const sessionId = _req.query.sessionId as string | undefined;
+    res.json(costTracker.getBudgetStatus(sessionId));
+  });
+
+  app.get('/api/model/route', (_req, res) => {
+    if (!modelRouter) { res.json({ error: 'Model router not initialized' }); return; }
+    const message = (_req.query.message as string) || 'test';
+    const conversationLength = parseInt(String(_req.query.conversationLength || '0'), 10);
+    const budgetRemaining = costTracker ? costTracker.getBudgetRemaining() : undefined;
+    const decision = modelRouter.route({ message, conversationLength, budgetRemaining });
+    res.json(decision);
+  });
+
+  app.get('/api/tools/categories', (_req, res) => {
+    if (!toolRegistry) { res.json({}); return; }
+    res.json(toolRegistry.getCategoryCounts());
   });
 
   // Register all channel webhooks

@@ -20,6 +20,23 @@ export const api = {
   },
   cost: {
     today: () => fetchAPI<{ costUsd: number }>('/api/cost/today'),
+    breakdown: () => fetchAPI<{
+      byModel: Record<string, { tokensIn: number; tokensOut: number; costUsd: number; requests: number }>;
+      total: { tokensIn: number; tokensOut: number; costUsd: number; requests: number };
+    }>('/api/cost/breakdown'),
+  },
+  budget: {
+    status: (sessionId?: string) => fetchAPI<{
+      dailyBudgetUsd: number; dailySpentUsd: number; dailyRemainingUsd: number;
+      sessionBudgetUsd: number; sessionSpentUsd: number; sessionRemainingUsd: number;
+      isOverBudget: boolean; autoDowngrade: boolean;
+    }>(`/api/budget${sessionId ? `?sessionId=${sessionId}` : ''}`),
+  },
+  model: {
+    route: (message: string, conversationLength = 0) => fetchAPI<{
+      modelId: string; tier: string; maxTokens: number; reason: string;
+      estimatedInputCost: number; estimatedOutputCost: number; fallbackChain: string[];
+    }>(`/api/model/route?message=${encodeURIComponent(message)}&conversationLength=${conversationLength}`),
   },
   settings: {
     getAll: () => fetchAPI<any[]>('/api/settings'),

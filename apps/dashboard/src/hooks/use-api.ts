@@ -96,6 +96,49 @@ export function useTodayCost(pollInterval = 10000) {
   return cost;
 }
 
+export function useCostBreakdown(pollInterval = 10000) {
+  const [breakdown, setBreakdown] = useState<{
+    byModel: Record<string, { tokensIn: number; tokensOut: number; costUsd: number; requests: number }>;
+    total: { tokensIn: number; tokensOut: number; costUsd: number; requests: number };
+  } | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const result = await api.cost.breakdown();
+        setBreakdown(result);
+      } catch {}
+    };
+    load();
+    const timer = setInterval(load, pollInterval);
+    return () => clearInterval(timer);
+  }, [pollInterval]);
+
+  return breakdown;
+}
+
+export function useBudgetStatus(pollInterval = 10000) {
+  const [budget, setBudget] = useState<{
+    dailyBudgetUsd: number; dailySpentUsd: number; dailyRemainingUsd: number;
+    sessionBudgetUsd: number; sessionSpentUsd: number; sessionRemainingUsd: number;
+    isOverBudget: boolean; autoDowngrade: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const result = await api.budget.status();
+        setBudget(result);
+      } catch {}
+    };
+    load();
+    const timer = setInterval(load, pollInterval);
+    return () => clearInterval(timer);
+  }, [pollInterval]);
+
+  return budget;
+}
+
 export function useSettings() {
   const [settings, setSettings] = useState<{ key: string; value: string; updatedAt: number }[]>([]);
   const [loading, setLoading] = useState(true);

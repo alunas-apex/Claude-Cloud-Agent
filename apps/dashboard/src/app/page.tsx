@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useHealth, useSessions, useTodayCost } from '../hooks/use-api';
+import { useHealth, useSessions, useTodayCost, useCostBreakdown, useBudgetStatus } from '../hooks/use-api';
 import { useSocket } from '../hooks/use-socket';
 
 interface ActivityEvent {
@@ -21,13 +21,27 @@ function formatUptime(seconds: number): string {
 }
 
 function formatCost(cost: number): string {
-  return `$${cost.toFixed(2)}`;
+  return `$${cost.toFixed(4)}`;
 }
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+const MODEL_DISPLAY: Record<string, { label: string; color: string }> = {
+  'claude-haiku-4-5-20251001': { label: 'Haiku 4.5', color: 'text-green-400' },
+  'claude-sonnet-4-6': { label: 'Sonnet 4.6', color: 'text-blue-400' },
+  'claude-opus-4-6': { label: 'Opus 4.6', color: 'text-purple-400' },
+};
 
 export default function DashboardHome() {
   const { data: health, error: healthError } = useHealth(10000);
   const { sessions, loading: sessionsLoading } = useSessions(5000);
   const todayCost = useTodayCost(10000);
+  const costBreakdown = useCostBreakdown(10000);
+  const budgetStatus = useBudgetStatus(10000);
   const { connected, on, off } = useSocket();
   const [events, setEvents] = useState<ActivityEvent[]>([]);
 
@@ -50,8 +64,10 @@ export default function DashboardHome() {
       addEvent('tool:complete', `Tool completed: ${data?.toolName || data?.name || 'unknown'}${duration}`);
     };
     const handleCostUpdate = (data: any) => {
-      const amount = data?.costUsd != null ? ` — $${Number(data.costUsd).toFixed(4)}` : '';
-      addEvent('cost:update', `Cost update${amount}`);
+      const model = data?.model || 'unknown';
+      const display = MODEL_DISPLAY[model]?.label || model;
+      const amount = data?.costUsd != null ? ` $${Number(data.costUsd).toFixed(4)}` : '';
+      addEvent('cost:update', `${display}${amount}`);
     };
     const handleSessionCreated = (data: any) => {
       addEvent('session:created', `New session: ${data?.channel || 'unknown'}`);
@@ -75,29 +91,113 @@ export default function DashboardHome() {
     };
   }, [on, off, addEvent]);
 
-  // Derive stats
   const activeSessions = sessionsLoading ? '--' : String(sessions.length);
-  const toolCount = health ? String(health.channels?.length ?? 0) : '--';
-  const costDisplay = formatCost(todayCost);
+  const channelCount = health ? String(health.channels?.length ?? 0) : '--';
+  const costDisplay = `$${todayCost.toFixed(2)}`;
   const uptimeDisplay = health ? formatUptime(health.uptime) : '--';
 
-  // Derive health statuses
   const backendStatus: 'online' | 'offline' = health && !healthError ? 'online' : 'offline';
   const wsStatus: 'online' | 'offline' = connected ? 'online' : 'offline';
   const dbStatus: 'online' | 'offline' = health && !healthError ? 'online' : 'offline';
+
+  // Budget bar percentage
+  const budgetPct = budgetStatus
+    ? Math.min(100, (budgetStatus.dailySpentUsd / budgetStatus.dailyBudgetUsd) * 100)
+    : 0;
+  const budgetColor = budgetPct > 90 ? 'bg-red-500' : budgetPct > 70 ? 'bg-yellow-500' : 'bg-green-500';
 
   return (
     <div className="p-8">
       <h2 className="text-2xl font-bold text-white mb-2">Dashboard</h2>
       <p className="text-[var(--muted)] mb-8">Claude Cloud Agent Command Center</p>
 
+      {/* Top stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard title="Active Sessions" value={activeSessions} subtitle="Across all channels" />
-        <StatCard title="Channels Active" value={toolCount} subtitle={health ? health.channels.join(', ') || 'None' : 'Connecting...'} />
+        <StatCard title="Channels Active" value={channelCount} subtitle={health ? health.channels.join(', ') || 'None' : 'Connecting...'} />
         <StatCard title="Today's Cost" value={costDisplay} subtitle="Across all models" />
         <StatCard title="Uptime" value={uptimeDisplay} subtitle="Since last restart" />
       </div>
 
+      {/* Model Routing & Budget */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <Card title="Model Usage Breakdown">
+          {costBreakdown && Object.keys(costBreakdown.byModel).length > 0 ? (
+            <div className="space-y-3">
+              {Object.entries(costBreakdown.byModel).map(([modelId, data]) => {
+                const display = MODEL_DISPLAY[modelId] || { label: modelId, color: 'text-gray-400' };
+                const pct = costBreakdown.total.requests > 0
+                  ? Math.round((data.requests / costBreakdown.total.requests) * 100) : 0;
+                return (
+                  <div key={modelId} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={`font-medium ${display.color}`}>{display.label}</span>
+                      <span className="text-gray-400">{data.requests} requests</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+                      <span>In: {formatTokens(data.tokensIn)}</span>
+                      <span>Out: {formatTokens(data.tokensOut)}</span>
+                      <span>{formatCost(data.costUsd)}</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-1.5">
+                      <div className={`h-1.5 rounded-full ${display.color.replace('text-', 'bg-')}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="border-t border-[var(--card-border)] pt-2 mt-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-300">Total</span>
+                  <span className="text-white font-medium">{formatCost(costBreakdown.total.costUsd)} ({costBreakdown.total.requests} requests)</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">No API calls recorded yet. Model usage will appear here as requests are processed.</p>
+          )}
+        </Card>
+
+        <Card title="Budget Status">
+          {budgetStatus ? (
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-300">Daily Budget</span>
+                  <span className="text-white">${budgetStatus.dailySpentUsd.toFixed(2)} / ${budgetStatus.dailyBudgetUsd.toFixed(2)}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div className={`h-2 rounded-full ${budgetColor} transition-all`} style={{ width: `${budgetPct}%` }} />
+                </div>
+                <p className="text-xs text-[var(--muted)] mt-1">${budgetStatus.dailyRemainingUsd.toFixed(2)} remaining</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[var(--background)] rounded p-3">
+                  <p className="text-xs text-[var(--muted)]">Session Budget</p>
+                  <p className="text-lg font-medium text-white">${budgetStatus.sessionBudgetUsd.toFixed(2)}</p>
+                </div>
+                <div className="bg-[var(--background)] rounded p-3">
+                  <p className="text-xs text-[var(--muted)]">Auto-Downgrade</p>
+                  <p className={`text-lg font-medium ${budgetStatus.autoDowngrade ? 'text-green-400' : 'text-gray-500'}`}>
+                    {budgetStatus.autoDowngrade ? 'Enabled' : 'Disabled'}
+                  </p>
+                </div>
+              </div>
+
+              {budgetStatus.isOverBudget && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded p-3">
+                  <p className="text-sm text-red-400 font-medium">Budget Exceeded</p>
+                  <p className="text-xs text-red-400/70">Auto-downgrading to cheaper models to control costs.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">Loading budget information...</p>
+          )}
+        </Card>
+      </div>
+
+      {/* Activity & Health */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="Recent Activity">
           {events.length === 0 ? (
@@ -113,9 +213,7 @@ export default function DashboardHome() {
                   <EventBadge type={evt.type} />
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-300 truncate">{evt.summary}</p>
-                    <p className="text-xs text-[var(--muted)]">
-                      {evt.timestamp.toLocaleTimeString()}
-                    </p>
+                    <p className="text-xs text-[var(--muted)]">{evt.timestamp.toLocaleTimeString()}</p>
                   </div>
                 </div>
               ))}
@@ -128,13 +226,12 @@ export default function DashboardHome() {
             <HealthRow label="Backend Server" status={backendStatus} />
             <HealthRow label="WebSocket" status={wsStatus} />
             <HealthRow label="Database (SQLite)" status={dbStatus} />
+            <HealthRow label="Model Router" status={backendStatus} detail="Haiku / Sonnet / Opus" />
             <HealthRow label="MCP Server" status="planned" />
             <HealthRow label="Obsidian Vault" status="planned" />
           </div>
           {healthError && (
-            <p className="text-xs text-red-400 mt-4">
-              Backend error: {healthError}
-            </p>
+            <p className="text-xs text-red-400 mt-4">Backend error: {healthError}</p>
           )}
         </Card>
       </div>
@@ -161,17 +258,18 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function HealthRow({ label, status }: { label: string; status: string }) {
+function HealthRow({ label, status, detail }: { label: string; status: string; detail?: string }) {
   const color =
-    status === 'online'
-      ? 'bg-green-500'
-      : status === 'offline'
-        ? 'bg-red-500'
-        : 'bg-yellow-500';
+    status === 'online' ? 'bg-green-500'
+    : status === 'offline' ? 'bg-red-500'
+    : 'bg-yellow-500';
   const displayStatus = status === 'planned' ? 'planned' : status;
   return (
     <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-300">{label}</span>
+      <div>
+        <span className="text-sm text-gray-300">{label}</span>
+        {detail && <span className="text-xs text-[var(--muted)] ml-2">({detail})</span>}
+      </div>
       <div className="flex items-center gap-2">
         <span className={`w-2 h-2 rounded-full ${color}`} />
         <span className="text-xs text-[var(--muted)] capitalize">{displayStatus}</span>

@@ -8,20 +8,31 @@ A full autonomous AI agent command center powered by Claude AI. Features a web d
 
 ## What It Does
 
-### Current (v2.0 — Phase 2 Live Dashboard)
+### Current (v3.0 — Phase 3 Multi-Model Router)
 - **SMS Agent**: Text your Twilio number in plain English for Gmail, Calendar, GCP, and Admin tasks
 - **Live Dashboard**: Real-time command center at `localhost:3001` wired to backend via REST API + WebSocket
-  - Dashboard home with live stats (sessions, cost, uptime), system health indicators, real-time activity feed
+  - Dashboard home with live stats, model usage breakdown, budget status, health indicators, activity feed
   - Sessions page with live table, search, channel/status filters, real-time updates via Socket.IO
   - Tools page with registered tool registry + live execution log with expandable input/output
   - Settings page with editable model config, budget limits, API key status, channel toggles
   - Active navigation sidebar with route highlighting
+- **Multi-Model Intelligence Router**: Automatic Haiku/Sonnet/Opus selection based on task complexity
+  - Heuristic-based complexity scoring (0-100) — no LLM overhead for classification
+  - Opus for complex reasoning/planning, Sonnet for standard tasks, Haiku for simple queries
+  - Fallback chains: automatic retry with next model on rate limits (429/529)
+  - Budget-aware auto-downgrade when approaching daily/session limits
+  - Selective tool inclusion: keyword-based tool pruning to reduce token usage
+  - Tool result truncation: configurable max length to save output tokens
+  - User-configurable overrides via settings (force model, disable auto-routing)
+- **Cost Tracker**: Real-time token usage and cost tracking per model/session/day
+  - Per-model breakdown (tokens in/out, cost, request count)
+  - Daily and per-session budget limits with auto-enforcement
+  - Cost events streamed to dashboard via WebSocket
 - **WebSocket**: Real-time event streaming between backend and dashboard via Socket.IO
 - **Enhanced Database**: Sessions, messages, tool executions, cost ledger, settings, and plugin registry
-- **API**: REST endpoints for sessions, tools (list + executions), costs, and settings at `/api/*`
+- **API**: REST endpoints for sessions, tools, costs, budget, model routing, and settings at `/api/*`
 
-### Planned (Phases 2-7)
-- **Multi-Model Routing**: Auto-route to Haiku/Sonnet/Opus based on task complexity
+### Planned (Phases 4-7)
 - **MCP Integration**: Expose tools to Claude Desktop/Code; connect to external MCP servers
 - **Obsidian AI Brain**: Persistent vector memory with bidirectional Obsidian vault sync
 - **Agent Teams**: Coordinator, Researcher, Coder, Planner, Executor agents that collaborate
@@ -99,8 +110,10 @@ claude-cloud-agent/
 │   │   │   ├── server.ts              Express + Socket.IO + API routes
 │   │   │   │
 │   │   │   ├── agent/                 Core agent logic
-│   │   │   │   ├── assistant.ts       Claude agentic loop (tool use)
-│   │   │   │   └── tool-registry.ts   Aggregates all ToolModules
+│   │   │   │   ├── assistant.ts       Claude agentic loop (multi-model, tool use, cost tracking)
+│   │   │   │   ├── model-router.ts    ✅ Heuristic complexity scorer → Haiku/Sonnet/Opus selection
+│   │   │   │   ├── cost-tracker.ts    ✅ Token usage, cost calculation, budget enforcement
+│   │   │   │   └── tool-registry.ts   Aggregates all ToolModules (category-aware, selective inclusion)
 │   │   │   │
 │   │   │   ├── channels/              Messaging channel adapters
 │   │   │   │   ├── base.ts            Channel interface + ChannelCapabilities
@@ -252,6 +265,10 @@ export const MyToolModule: ToolModule = {
 | `/api/tools` | GET | List all registered tools (name + description) |
 | `/api/tools/executions` | GET | Tool execution log (paginated) |
 | `/api/cost/today` | GET | Today's total cost |
+| `/api/cost/breakdown` | GET | Cost breakdown by model (tokens, cost, requests) |
+| `/api/budget` | GET | Budget status (daily/session limits, remaining, over-budget) |
+| `/api/model/route` | GET | Test model routing for a message (query: message, conversationLength) |
+| `/api/tools/categories` | GET | Tool count per category |
 | `/api/settings` | GET | Get all settings |
 | `/api/settings` | PUT | Update a setting |
 | `/webhook/sms` | POST | Twilio SMS webhook |
@@ -332,7 +349,7 @@ npm run setup-google  # Google OAuth setup
 |-------|------|--------|-------------|
 | 1 | Foundation | **COMPLETE** | Turborepo monorepo, Next.js dashboard shell, enhanced DB, EventBus, Socket.IO, REST API |
 | 2 | Live Dashboard | **COMPLETE** | Live stats, sessions table, tool execution log, editable settings, WebSocket activity feed |
-| 3 | Multi-Model Router | PENDING | Haiku/Sonnet/Opus routing, cost tracking, budget management |
+| 3 | Multi-Model Router | **COMPLETE** | Heuristic model routing, cost tracking, budget management, selective tools, dashboard integration |
 | 4 | MCP Integration | PENDING | Built-in MCP server, Claude Desktop/Code connectivity |
 | 5 | Obsidian AI Brain | PENDING | ChromaDB vector memory, bidirectional Obsidian sync |
 | 6 | Agent Teams | PENDING | Coordinator, Researcher, Coder, Planner, Executor agents |
